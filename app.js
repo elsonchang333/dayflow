@@ -115,12 +115,71 @@ async function login(email, password) {
     AppState.currentUser = data.user;
     console.log('✅ 登录成功:', data.user.email);
     hideAuthModal();
+    
+    // Check if there's local data that needs to be synced first
+    const hasLocalData = AppState.todos.length > 0 || AppState.habits.length > 0 || 
+                         AppState.diaries.length > 0 || Object.keys(AppState.diet).length > 0;
+    
+    if (hasLocalData) {
+      console.log('📤 检测到本地数据，正在同步到云端...');
+      await syncLocalDataToSupabase();
+    }
+    
+    // Then load from cloud (merge with any existing cloud data)
     await loadUserData();
-    alert('✅ 登录成功！');
+    alert('✅ 登录成功！数据已同步');
     return true;
   } catch(e) {
     alert('❌ 登录失败: ' + e.message);
     return false;
+  }
+}
+
+// Sync local data to Supabase (for new login)
+async function syncLocalDataToSupabase() {
+  if (!supabaseClient || !AppState.currentUser) return;
+  
+  try {
+    const userId = AppState.currentUser.id;
+    
+    // Sync todos with user_id
+    for (const todo of AppState.todos) {
+      const todoWithUser = { ...todo, user_id: userId };
+      const { error } = await supabaseClient.from('todos').upsert(todoWithUser);
+      if (error) console.warn('Failed to sync todo:', error);
+    }
+    
+    // Sync habits
+    for (const habit of AppState.habits) {
+      const habitWithUser = { ...habit, user_id: userId };
+      const { error } = await supabaseClient.from('habits').upsert(habitWithUser);
+      if (error) console.warn('Failed to sync habit:', error);
+    }
+    
+    // Sync diaries
+    for (const diary of AppState.diaries) {
+      const diaryWithUser = { ...diary, user_id: userId };
+      const { error } = await supabaseClient.from('diaries').upsert(diaryWithUser);
+      if (error) console.warn('Failed to sync diary:', error);
+    }
+    
+    // Sync diet
+    for (const [date, dietData] of Object.entries(AppState.diet)) {
+      const dietWithUser = { ...dietData, date, user_id: userId };
+      const { error } = await supabaseClient.from('diet').upsert(dietWithUser);
+      if (error) console.warn('Failed to sync diet:', error);
+    }
+    
+    // Sync events
+    for (const event of AppState.events) {
+      const eventWithUser = { ...event, user_id: userId };
+      const { error } = await supabaseClient.from('events').upsert(eventWithUser);
+      if (error) console.warn('Failed to sync event:', error);
+    }
+    
+    console.log('✅ 本地数据已同步到云端');
+  } catch(e) {
+    console.warn('❌ 同步失败:', e);
   }
 }
 
