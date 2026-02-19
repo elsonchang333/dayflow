@@ -54,18 +54,11 @@ async function initSupabase() {
     if (user) {
       AppState.currentUser = user;
       console.log('✅ User already logged in:', user.email);
-      console.log('📊 Current local data before merge:');
-      console.log('  - todos:', AppState.todos.length);
-      console.log('  - habits:', AppState.habits.length);
-      console.log('  - diaries:', AppState.diaries.length);
-      console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
       hideAuthModal();
-      await loadUserData();
-      console.log('📊 After merge:');
-      console.log('  - todos:', AppState.todos.length);
-      console.log('  - habits:', AppState.habits.length);
-      console.log('  - diaries:', AppState.diaries.length);
-      console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
+      
+      // FORCE load from cloud - download latest data
+      console.log('☁️ Force loading data from cloud...');
+      await loadUserDataFromCloud();
     } else {
       console.log('👤 No user logged in');
       showAuthModal();
@@ -285,6 +278,60 @@ function switchToRegister() {
 function updateUserDisplay() {
   const email = AppState.currentUser?.email || '未登录';
   document.getElementById('currentUserEmail').textContent = email;
+}
+
+// Simple load from cloud - OVERWRITE local data
+async function loadUserDataFromCloud() {
+  if (!AppState.currentUser) return;
+  
+  try {
+    const userId = AppState.currentUser.id;
+    console.log('☁️ Downloading data from cloud for user:', userId);
+    
+    // Load all data types
+    const [{ data: todos }, { data: habits }, { data: diaries }, { data: diets }, { data: events }] = await Promise.all([
+      supabaseClient.from('todos').select('*').eq('user_id', userId),
+      supabaseClient.from('habits').select('*').eq('user_id', userId),
+      supabaseClient.from('diaries').select('*').eq('user_id', userId),
+      supabaseClient.from('diet').select('*').eq('user_id', userId),
+      supabaseClient.from('events').select('*').eq('user_id', userId)
+    ]);
+    
+    // Overwrite local data
+    if (todos) AppState.todos = todos;
+    if (habits) AppState.habits = habits;
+    if (diaries) AppState.diaries = diaries;
+    if (events) AppState.events = events;
+    
+    if (diets) {
+      AppState.diet = {};
+      diets.forEach(d => AppState.diet[d.date] = d);
+    }
+    
+    console.log('✅ Downloaded from cloud:');
+    console.log('  - todos:', AppState.todos.length);
+    console.log('  - habits:', AppState.habits.length);
+    console.log('  - diaries:', AppState.diaries.length);
+    console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
+    console.log('  - events:', AppState.events.length);
+    
+    // Save to localStorage
+    LocalDB.set('todos', AppState.todos);
+    LocalDB.set('habits', AppState.habits);
+    LocalDB.set('diet', AppState.diet);
+    LocalDB.set('events', AppState.events);
+    LocalDB.set('diaries', AppState.diaries);
+    console.log('💾 Saved cloud data to localStorage');
+    
+    renderOverview();
+    renderReview();
+    
+    if (Object.keys(AppState.diet).length > 0) {
+      alert('✅ 已同步 ' + Object.keys(AppState.diet).length + ' 条饮食记录！');
+    }
+  } catch(e) {
+    console.error('❌ Failed to download from cloud:', e);
+  }
 }
 
 // Load user data from Supabase and MERGE with local data
