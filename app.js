@@ -34,12 +34,64 @@ const LocalDB = {
 
 async function initSupabase() {
   try {
-    if (typeof window.supabase === 'undefined') { console.warn('Supabase not loaded'); return false; }
+    // Wait for supabase to be available (retry up to 5 times)
+    let retries = 0;
+    while (typeof window.supabase === 'undefined' && retries < 5) {
+      await new Promise(r => setTimeout(r, 500));
+      retries++;
+    }
+    
+    if (typeof window.supabase === 'undefined') { 
+      console.warn('⚠️ Supabase SDK not loaded, using local storage only'); 
+      return false; 
+    }
+    
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { error } = await supabase.from('todos').select('count');
+    const { data, error } = await supabase.from('todos').select('count');
     if (error) throw error;
-    isOnline = true; console.log('Supabase connected'); return true;
-  } catch(e) { console.warn('Supabase failed:', e.message); isOnline = false; return false; }
+    isOnline = true; 
+    console.log('✅ Supabase connected - data will sync to cloud'); 
+    
+    // Try to sync local data to Supabase
+    await syncToSupabase();
+    
+    return true;
+  } catch(e) { 
+    console.warn('❌ Supabase connection failed:', e.message); 
+    isOnline = false; 
+    return false; 
+  }
+}
+
+// Sync local data to Supabase
+async function syncToSupabase() {
+  if (!isOnline || !supabase) return;
+  
+  try {
+    console.log('🔄 Syncing local data to Supabase...');
+    
+    // Sync todos
+    for (const todo of AppState.todos) {
+      const { error } = await supabase.from('todos').upsert(todo);
+      if (error) console.warn('Failed to sync todo:', error);
+    }
+    
+    // Sync habits
+    for (const habit of AppState.habits) {
+      const { error } = await supabase.from('habits').upsert(habit);
+      if (error) console.warn('Failed to sync habit:', error);
+    }
+    
+    // Sync diaries
+    for (const diary of AppState.diaries) {
+      const { error } = await supabase.from('diaries').upsert(diary);
+      if (error) console.warn('Failed to sync diary:', error);
+    }
+    
+    console.log('✅ Sync complete');
+  } catch(e) {
+    console.warn('❌ Sync failed:', e.message);
+  }
 }
 
 function loadData() {
