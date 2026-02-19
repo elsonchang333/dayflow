@@ -226,29 +226,48 @@ async function loadUserData() {
   
   try {
     const userId = AppState.currentUser.id;
+    console.log('📥 Loading data from Supabase for user:', userId);
     
     // Load todos
-    const { data: todos } = await supabaseClient.from('todos').select('*').eq('user_id', userId);
-    if (todos) AppState.todos = todos;
+    const { data: todos, error: todosError } = await supabaseClient.from('todos').select('*').eq('user_id', userId);
+    if (todosError) console.warn('❌ Failed to load todos:', todosError);
+    else if (todos) {
+      AppState.todos = todos;
+      console.log('✅ Loaded', todos.length, 'todos');
+    }
     
     // Load habits
-    const { data: habits } = await supabaseClient.from('habits').select('*').eq('user_id', userId);
-    if (habits) AppState.habits = habits;
+    const { data: habits, error: habitsError } = await supabaseClient.from('habits').select('*').eq('user_id', userId);
+    if (habitsError) console.warn('❌ Failed to load habits:', habitsError);
+    else if (habits) {
+      AppState.habits = habits;
+      console.log('✅ Loaded', habits.length, 'habits');
+    }
     
     // Load diaries
-    const { data: diaries } = await supabaseClient.from('diaries').select('*').eq('user_id', userId);
-    if (diaries) AppState.diaries = diaries;
+    const { data: diaries, error: diariesError } = await supabaseClient.from('diaries').select('*').eq('user_id', userId);
+    if (diariesError) console.warn('❌ Failed to load diaries:', diariesError);
+    else if (diaries) {
+      AppState.diaries = diaries;
+      console.log('✅ Loaded', diaries.length, 'diaries');
+    }
     
     // Load diet
-    const { data: diets } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
-    if (diets) {
+    const { data: diets, error: dietsError } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
+    if (dietsError) console.warn('❌ Failed to load diet:', dietsError);
+    else if (diets) {
       AppState.diet = {};
       diets.forEach(d => AppState.diet[d.date] = d);
+      console.log('✅ Loaded', diets.length, 'diet entries');
     }
     
     // Load events
-    const { data: events } = await supabaseClient.from('events').select('*').eq('user_id', userId);
-    if (events) AppState.events = events;
+    const { data: events, error: eventsError } = await supabaseClient.from('events').select('*').eq('user_id', userId);
+    if (eventsError) console.warn('❌ Failed to load events:', eventsError);
+    else if (events) {
+      AppState.events = events;
+      console.log('✅ Loaded', events.length, 'events');
+    }
     
     console.log('✅ User data loaded from Supabase');
     renderOverview(); renderReview();
@@ -296,7 +315,7 @@ function loadData() {
   AppState.diaries = LocalDB.get('diaries') || [];
 }
 
-function saveData() {
+async function saveData() {
   LocalDB.set('todos', AppState.todos);
   LocalDB.set('habits', AppState.habits);
   LocalDB.set('diet', AppState.diet);
@@ -305,34 +324,48 @@ function saveData() {
   
   // Auto-sync to Supabase if logged in
   if (AppState.currentUser && supabaseClient) {
-    autoSyncToSupabase();
+    console.log('🔄 Auto-syncing to Supabase...');
+    await autoSyncToSupabase();
   }
 }
 
 // Auto sync all data to Supabase (lightweight version for frequent saves)
 async function autoSyncToSupabase() {
-  if (!supabaseClient || !AppState.currentUser) return;
+  if (!supabaseClient || !AppState.currentUser) {
+    console.log('⚠️ Cannot sync: not logged in or no supabase client');
+    return;
+  }
   
   const userId = AppState.currentUser.id;
+  const syncStatus = document.getElementById('syncStatus');
+  if (syncStatus) syncStatus.textContent = '同步中...';
   
   // Batch upsert all data types
   try {
+    console.log('🔄 Starting auto-sync for user:', userId);
+    
     // Todos
     if (AppState.todos.length > 0) {
       const todosWithUser = AppState.todos.map(t => ({ ...t, user_id: userId }));
-      await supabaseClient.from('todos').upsert(todosWithUser);
+      const { error } = await supabaseClient.from('todos').upsert(todosWithUser);
+      if (error) console.warn('❌ Failed to sync todos:', error);
+      else console.log('✅ Synced', AppState.todos.length, 'todos');
     }
     
     // Habits
     if (AppState.habits.length > 0) {
       const habitsWithUser = AppState.habits.map(h => ({ ...h, user_id: userId }));
-      await supabaseClient.from('habits').upsert(habitsWithUser);
+      const { error } = await supabaseClient.from('habits').upsert(habitsWithUser);
+      if (error) console.warn('❌ Failed to sync habits:', error);
+      else console.log('✅ Synced', AppState.habits.length, 'habits');
     }
     
     // Diaries
     if (AppState.diaries.length > 0) {
       const diariesWithUser = AppState.diaries.map(d => ({ ...d, user_id: userId }));
-      await supabaseClient.from('diaries').upsert(diariesWithUser);
+      const { error } = await supabaseClient.from('diaries').upsert(diariesWithUser);
+      if (error) console.warn('❌ Failed to sync diaries:', error);
+      else console.log('✅ Synced', AppState.diaries.length, 'diaries');
     }
     
     // Diet
@@ -344,18 +377,30 @@ async function autoSyncToSupabase() {
         date, 
         user_id: userId 
       }));
-      await supabaseClient.from('diet').upsert(dietsWithUser);
+      const { error } = await supabaseClient.from('diet').upsert(dietsWithUser);
+      if (error) console.warn('❌ Failed to sync diet:', error);
+      else console.log('✅ Synced', dietEntries.length, 'diet entries');
     }
     
     // Events
     if (AppState.events.length > 0) {
       const eventsWithUser = AppState.events.map(e => ({ ...e, user_id: userId }));
-      await supabaseClient.from('events').upsert(eventsWithUser);
+      const { error } = await supabaseClient.from('events').upsert(eventsWithUser);
+      if (error) console.warn('❌ Failed to sync events:', error);
+      else console.log('✅ Synced', AppState.events.length, 'events');
     }
     
-    console.log('☁️ Auto-synced to Supabase');
+    console.log('☁️ Auto-sync complete');
+    if (syncStatus) {
+      syncStatus.textContent = '已同步';
+      setTimeout(() => { syncStatus.textContent = ''; }, 2000);
+    }
   } catch(e) {
-    console.warn('Auto-sync failed:', e);
+    console.warn('❌ Auto-sync failed:', e);
+    if (syncStatus) {
+      syncStatus.textContent = '同步失败';
+      setTimeout(() => { syncStatus.textContent = ''; }, 3000);
+    }
   }
 }
 
