@@ -8,7 +8,8 @@ let isOnline = false;
 const AppState = {
   currentPage: 'today',
   habits: [], todos: [], diet: {}, events: [], diaries: [],
-  currentDate: new Date(), todoFilter: 'all', selectedDiaryMood: 3
+  currentDate: new Date(), todoFilter: 'all', selectedDiaryMood: 3,
+  currentDiaryId: null
 };
 
 const Utils = {
@@ -243,6 +244,7 @@ function renderDiaryList() {
 function viewDiary(id) {
   const d = AppState.diaries.find(x => x.id === id);
   if (!d) return;
+  AppState.currentDiaryId = id;
   document.getElementById('viewDiaryTitle').textContent = d.title;
   document.getElementById('viewDiaryDate').textContent = Utils.formatDate(d.date).full;
   document.getElementById('viewDiaryMood').textContent = Utils.getMoodEmoji(d.mood);
@@ -250,16 +252,66 @@ function viewDiary(id) {
   document.getElementById('viewDiaryModal').classList.add('active');
 }
 
+function editDiary() {
+  const d = AppState.diaries.find(x => x.id === AppState.currentDiaryId);
+  if (!d) return;
+  document.getElementById('viewDiaryModal').classList.remove('active');
+  document.getElementById('diaryModal').classList.add('active');
+  document.getElementById('diaryDate').value = d.date;
+  document.getElementById('diaryTitle').value = d.title;
+  document.getElementById('diaryContent').value = d.content || '';
+  AppState.selectedDiaryMood = d.mood || 3;
+  document.querySelectorAll('.diary-mood-btn').forEach(b => {
+    b.classList.remove('active');
+    if (parseInt(b.dataset.mood) === AppState.selectedDiaryMood) b.classList.add('active');
+  });
+}
+
+function deleteDiary() {
+  if (!AppState.currentDiaryId) return;
+  if (confirm('确定要删除这篇日记吗？')) {
+    AppState.diaries = AppState.diaries.filter(d => d.id !== AppState.currentDiaryId);
+    saveData();
+    document.getElementById('viewDiaryModal').classList.remove('active');
+    if (AppState.currentPage === 'diary') renderDiaryList();
+    renderOverview(); renderReview();
+    alert('日记已删除');
+  }
+}
+
 function saveDiary() {
   const title = document.getElementById('diaryTitle')?.value?.trim();
   const content = document.getElementById('diaryContent')?.value?.trim();
   const date = document.getElementById('diaryDate')?.value || Utils.formatDate(new Date()).full;
   if (!title && !content) { alert('请填写标题或内容'); return; }
-  const diary = { id: Utils.generateId(), title: title||'无标题', content: content||'', date, mood: AppState.selectedDiaryMood||3, created_at: new Date().toISOString() };
-  AppState.diaries.unshift(diary); saveData();
+  
+  if (AppState.currentDiaryId) {
+    // 更新现有日记
+    const index = AppState.diaries.findIndex(d => d.id === AppState.currentDiaryId);
+    if (index !== -1) {
+      AppState.diaries[index] = {
+        ...AppState.diaries[index],
+        title: title || '无标题',
+        content: content || '',
+        date,
+        mood: AppState.selectedDiaryMood || 3,
+        updated_at: new Date().toISOString()
+      };
+      AppState.currentDiaryId = null;
+    }
+  } else {
+    // 新建日记
+    const diary = { id: Utils.generateId(), title: title || '无标题', content: content || '', date, mood: AppState.selectedDiaryMood || 3, created_at: new Date().toISOString() };
+    AppState.diaries.unshift(diary);
+  }
+  
+  saveData();
   document.getElementById('diaryModal').classList.remove('active');
+  document.getElementById('diaryTitle').value = '';
+  document.getElementById('diaryContent').value = '';
   if (AppState.currentPage === 'diary') renderDiaryList();
-  renderOverview(); renderReview(); alert('日记保存成功！');
+  renderOverview(); renderReview();
+  alert(AppState.currentDiaryId ? '日记更新成功！' : '日记保存成功！');
 }
 
 function renderCalendar() {
@@ -372,7 +424,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('closeDiet')?.addEventListener('click', () => document.getElementById('dietModal').classList.remove('active'));
   document.getElementById('closePomodoro')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.remove('active'));
   document.getElementById('closeDiaryModal')?.addEventListener('click', () => document.getElementById('diaryModal').classList.remove('active'));
-  document.getElementById('closeViewDiary')?.addEventListener('click', () => document.getElementById('viewDiaryModal').classList.remove('active'));
+  document.getElementById('closeViewDiary')?.addEventListener('click', () => { document.getElementById('viewDiaryModal').classList.remove('active'); AppState.currentDiaryId = null; });
+  document.getElementById('editDiaryBtn')?.addEventListener('click', editDiary);
+  document.getElementById('deleteDiaryBtn')?.addEventListener('click', deleteDiary);
   document.getElementById('closeAddEvent')?.addEventListener('click', () => document.getElementById('addEventModal').classList.remove('active'));
   document.getElementById('closeSettings')?.addEventListener('click', () => document.getElementById('settingsModal').classList.remove('active'));
   
@@ -380,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('addTodoBtn')?.addEventListener('click', () => { addTodo(document.getElementById('todoInput').value); document.getElementById('todoInput').value = ''; });
   document.getElementById('addHabitBtn')?.addEventListener('click', () => { addHabit(document.getElementById('habitInput').value, document.getElementById('habitIcon').value); document.getElementById('habitInput').value = ''; });
   document.getElementById('saveDiet')?.addEventListener('click', saveDiet);
-  document.getElementById('addDiaryBtn')?.addEventListener('click', () => { document.getElementById('diaryModal').classList.add('active'); document.getElementById('diaryDate').value = Utils.formatDate(new Date()).full; });
+  document.getElementById('addDiaryBtn')?.addEventListener('click', () => { AppState.currentDiaryId = null; document.getElementById('diaryModal').classList.add('active'); document.getElementById('diaryDate').value = Utils.formatDate(new Date()).full; document.getElementById('diaryTitle').value = ''; document.getElementById('diaryContent').value = ''; });
   document.getElementById('saveDiaryBtn')?.addEventListener('click', saveDiary);
   document.getElementById('addEventFromCalendar')?.addEventListener('click', () => { document.getElementById('addEventModal').classList.add('active'); document.getElementById('newEventDate').value = document.getElementById('calendarDatePicker').value || Utils.formatDate(new Date()).full; });
   document.getElementById('saveNewEvent')?.addEventListener('click', saveEvent);
