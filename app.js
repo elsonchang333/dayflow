@@ -9,7 +9,8 @@ const AppState = {
   currentPage: 'today',
   habits: [], todos: [], diet: {}, events: [], diaries: [],
   currentDate: new Date(), todoFilter: 'all', selectedDiaryMood: 3,
-  currentDiaryId: null
+  currentDiaryId: null,
+  currentUser: null
 };
 
 const Utils = {
@@ -34,7 +35,6 @@ const LocalDB = {
 
 async function initSupabase() {
   try {
-    // Wait for supabase to be available (retry up to 5 times)
     let retries = 0;
     while (typeof window.supabase === 'undefined' && retries < 5) {
       await new Promise(r => setTimeout(r, 500));
@@ -42,24 +42,153 @@ async function initSupabase() {
     }
     
     if (typeof window.supabase === 'undefined') { 
-      console.warn('⚠️ Supabase SDK not loaded, using local storage only'); 
+      console.warn('⚠️ Supabase SDK not loaded'); 
       return false; 
     }
     
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { data, error } = await supabaseClient.from('todos').select('count');
-    if (error) throw error;
+    
+    // Check if user is already logged in
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+      AppState.currentUser = user;
+      console.log('✅ User already logged in:', user.email);
+      hideAuthModal();
+      await loadUserData();
+    } else {
+      console.log('👤 No user logged in');
+      showAuthModal();
+    }
+    
     isOnline = true; 
-    console.log('✅ Supabase connected - data will sync to cloud'); 
-    
-    // Try to sync local data to Supabase
-    await syncToSupabase();
-    
     return true;
   } catch(e) { 
-    console.warn('❌ Supabase connection failed:', e.message); 
+    console.warn('❌ Supabase init failed:', e.message); 
     isOnline = false; 
     return false; 
+  }
+}
+
+// Auth Functions
+function showAuthModal() {
+  document.getElementById('authModal').style.display = 'flex';
+  document.querySelector('.main-content').style.display = 'none';
+  document.querySelector('.bottom-nav').style.display = 'none';
+}
+
+function hideAuthModal() {
+  document.getElementById('authModal').style.display = 'none';
+  document.querySelector('.main-content').style.display = 'block';
+  document.querySelector('.bottom-nav').style.display = 'flex';
+  updateUserDisplay();
+}
+
+async function register(email, password) {
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email: email,
+      password: password
+    });
+    
+    if (error) throw error;
+    
+    AppState.currentUser = data.user;
+    alert('✅ 注册成功！请登录');
+    switchToLogin();
+    return true;
+  } catch(e) {
+    alert('❌ 注册失败: ' + e.message);
+    return false;
+  }
+}
+
+async function login(email, password) {
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+    
+    if (error) throw error;
+    
+    AppState.currentUser = data.user;
+    console.log('✅ 登录成功:', data.user.email);
+    hideAuthModal();
+    await loadUserData();
+    alert('✅ 登录成功！');
+    return true;
+  } catch(e) {
+    alert('❌ 登录失败: ' + e.message);
+    return false;
+  }
+}
+
+async function logout() {
+  try {
+    await supabaseClient.auth.signOut();
+    AppState.currentUser = null;
+    AppState.todos = []; AppState.habits = []; AppState.diaries = [];
+    AppState.diet = {}; AppState.events = [];
+    alert('✅ 已退出登录');
+    showAuthModal();
+  } catch(e) {
+    console.error('Logout error:', e);
+  }
+}
+
+function switchToLogin() {
+  document.getElementById('loginForm').style.display = 'block';
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('loginTab').classList.add('active');
+  document.getElementById('registerTab').classList.remove('active');
+}
+
+function switchToRegister() {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('registerForm').style.display = 'block';
+  document.getElementById('loginTab').classList.remove('active');
+  document.getElementById('registerTab').classList.add('active');
+}
+
+function updateUserDisplay() {
+  const email = AppState.currentUser?.email || '未登录';
+  document.getElementById('currentUserEmail').textContent = email;
+}
+
+// Load user data from Supabase
+async function loadUserData() {
+  if (!AppState.currentUser) return;
+  
+  try {
+    const userId = AppState.currentUser.id;
+    
+    // Load todos
+    const { data: todos } = await supabaseClient.from('todos').select('*').eq('user_id', userId);
+    if (todos) AppState.todos = todos;
+    
+    // Load habits
+    const { data: habits } = await supabaseClient.from('habits').select('*').eq('user_id', userId);
+    if (habits) AppState.habits = habits;
+    
+    // Load diaries
+    const { data: diaries } = await supabaseClient.from('diaries').select('*').eq('user_id', userId);
+    if (diaries) AppState.diaries = diaries;
+    
+    // Load diet
+    const { data: diets } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
+    if (diets) {
+      AppState.diet = {};
+      diets.forEach(d => AppState.diet[d.date] = d);
+    }
+    
+    // Load events
+    const { data: events } = await supabaseClient.from('events').select('*').eq('user_id', userId);
+    if (events) AppState.events = events;
+    
+    console.log('✅ User data loaded from Supabase');
+    renderOverview(); renderReview();
+  } catch(e) {
+    console.error('❌ Failed to load user data:', e);
   }
 }
 
@@ -108,6 +237,19 @@ function saveData() {
   LocalDB.set('diet', AppState.diet);
   LocalDB.set('events', AppState.events);
   LocalDB.set('diaries', AppState.diaries);
+}
+
+// Save to Supabase with user_id
+async function saveToSupabase(table, data) {
+  if (!supabaseClient || !AppState.currentUser) return;
+  
+  try {
+    const dataWithUser = { ...data, user_id: AppState.currentUser.id };
+    const { error } = await supabaseClient.from(table).upsert(dataWithUser);
+    if (error) console.warn(`Failed to save ${table}:`, error);
+  } catch(e) {
+    console.warn(`Supabase save error:`, e);
+  }
 }
 
 function initToday() {
@@ -659,6 +801,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.classList.add('active');
     renderStats();
   }));
+  
+  // Auth event listeners
+  document.getElementById('loginTab')?.addEventListener('click', switchToLogin);
+  document.getElementById('registerTab')?.addEventListener('click', switchToRegister);
+  document.getElementById('doLogin')?.addEventListener('click', () => {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    if (email && password) login(email, password);
+    else alert('请输入邮箱和密码');
+  });
+  document.getElementById('doRegister')?.addEventListener('click', () => {
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const confirm = document.getElementById('confirmPassword').value;
+    if (!email || !password) { alert('请输入邮箱和密码'); return; }
+    if (password !== confirm) { alert('两次密码不一致'); return; }
+    if (password.length < 6) { alert('密码至少6位'); return; }
+    register(email, password);
+  });
+  document.getElementById('logoutBtn')?.addEventListener('click', logout);
   
   console.log('DayFlow initialized');
 });
