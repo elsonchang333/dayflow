@@ -218,6 +218,20 @@ async function clearAllData() {
   }
   
   try {
+    // Clear Supabase data FIRST (before clearing local data)
+    if (AppState.currentUser && supabaseClient) {
+      const userId = AppState.currentUser.id;
+      console.log('🗑️ Clearing Supabase data for user:', userId);
+      
+      await supabaseClient.from('todos').delete().eq('user_id', userId);
+      await supabaseClient.from('habits').delete().eq('user_id', userId);
+      await supabaseClient.from('diaries').delete().eq('user_id', userId);
+      await supabaseClient.from('diet').delete().eq('user_id', userId);
+      await supabaseClient.from('events').delete().eq('user_id', userId);
+      
+      console.log('✅ Supabase data cleared');
+    }
+    
     // Clear local storage
     LocalDB.set('todos', []);
     LocalDB.set('habits', []);
@@ -231,20 +245,6 @@ async function clearAllData() {
     AppState.diet = {};
     AppState.events = [];
     AppState.diaries = [];
-    
-    // Clear Supabase data if logged in
-    if (AppState.currentUser && supabaseClient) {
-      const userId = AppState.currentUser.id;
-      console.log('🗑️ Clearing Supabase data for user:', userId);
-      
-      await supabaseClient.from('todos').delete().eq('user_id', userId);
-      await supabaseClient.from('habits').delete().eq('user_id', userId);
-      await supabaseClient.from('diaries').delete().eq('user_id', userId);
-      await supabaseClient.from('diet').delete().eq('user_id', userId);
-      await supabaseClient.from('events').delete().eq('user_id', userId);
-      
-      console.log('✅ Supabase data cleared');
-    }
     
     // Re-render
     renderOverview();
@@ -1023,8 +1023,25 @@ function saveDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
   const get = id => document.getElementById(id)?.value || '';
   const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
-  AppState.diet[date] = { breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, snack: {food:get('snackInput'),calories:getNum('snackCal')} };
-  saveData(); document.getElementById('dietModal').classList.remove('active'); renderOverview(); renderReview(); alert('饮食记录已保存！');
+  
+  // Generate unique id for this diet entry
+  const userId = AppState.currentUser?.id || 'local';
+  const dietId = `${userId}_${date}`;
+  
+  AppState.diet[date] = { 
+    id: dietId,
+    date: date,
+    breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, 
+    lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, 
+    dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, 
+    snack: {food:get('snackInput'),calories:getNum('snackCal')} 
+  };
+  
+  saveData(); 
+  document.getElementById('dietModal').classList.remove('active'); 
+  renderOverview(); 
+  renderReview(); 
+  alert('饮食记录已保存！');
 }
 
 function renderDiaryList() {
