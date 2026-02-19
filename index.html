@@ -33,6 +33,21 @@
             <p class="date-sub" id="currentWeekday">星期-</p>
           </div>
         </div>
+        
+        <!-- 日期选择器 -->
+        <div class="today-date-selector" style="background: white; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+            <input type="date" id="todayDatePicker" style="flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+            <button id="todayGoToDate" style="background: #3b82f6; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 14px;">跳转</button>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="today-quick-date" data-offset="0">今天</button>
+            <button class="today-quick-date" data-offset="-1">昨天</button>
+            <button class="today-quick-date" data-offset="-2">前天</button>
+            <button class="today-quick-date" data-offset="-3">3天前</button>
+            <button class="today-quick-date" data-offset="-7">7天前</button>
+          </div>
+        </div>
 
         <div class="quick-actions">
           <button class="quick-btn" id="todoBtn">

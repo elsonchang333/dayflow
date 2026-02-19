@@ -561,12 +561,36 @@ function jumpToDate(date) {
   document.getElementById('currentDate').textContent = `${formatted.month}${formatted.date}日`;
   document.getElementById('currentWeekday').textContent = formatted.weekday;
   
+  // Update today date picker if exists
+  const datePicker = document.getElementById('todayDatePicker');
+  if (datePicker) datePicker.value = formatted.full;
+  
   // Re-render with new date
   renderOverview();
   renderReview();
   
   // Show a toast or highlight
   alert(`已切换到 ${formatted.full}，点击下方按钮编辑数据`);
+}
+
+// Switch to specific date on today page
+function switchToDate(date) {
+  // Update current date
+  const d = new Date(date);
+  AppState.currentDate = d;
+  
+  // Update date display
+  const formatted = Utils.formatDate(d);
+  document.getElementById('currentDate').textContent = `${formatted.month}${formatted.date}日`;
+  document.getElementById('currentWeekday').textContent = formatted.weekday;
+  
+  // Update date picker
+  const datePicker = document.getElementById('todayDatePicker');
+  if (datePicker) datePicker.value = formatted.full;
+  
+  // Re-render with new date
+  renderOverview();
+  renderReview();
 }
 
 function renderDietStats(dates) {
@@ -955,20 +979,57 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Navigation
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
   
+  // Today page date selector
+  const todayDatePicker = document.getElementById('todayDatePicker');
+  if (todayDatePicker) {
+    todayDatePicker.value = Utils.formatDate(new Date()).full;
+    
+    todayDatePicker.addEventListener('change', () => {
+      const selectedDate = todayDatePicker.value;
+      if (selectedDate) {
+        switchToDate(selectedDate);
+      }
+    });
+  }
+  
+  document.getElementById('todayGoToDate')?.addEventListener('click', () => {
+    const selectedDate = document.getElementById('todayDatePicker')?.value;
+    if (selectedDate) {
+      switchToDate(selectedDate);
+    }
+  });
+  
+  // Today page quick date buttons
+  document.querySelectorAll('.today-quick-date').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const offset = parseInt(btn.dataset.offset);
+      const date = new Date();
+      date.setDate(date.getDate() + offset);
+      const dateStr = Utils.formatDate(date).full;
+      
+      // Update date picker
+      const picker = document.getElementById('todayDatePicker');
+      if (picker) picker.value = dateStr;
+      
+      // Switch to that date
+      switchToDate(dateStr);
+    });
+  });
+  
   // Quick actions
   document.getElementById('todoBtn')?.addEventListener('click', () => { 
     document.getElementById('todoModal').classList.add('active'); 
-    document.getElementById('todoDate').value = Utils.formatDate(new Date()).full; 
+    document.getElementById('todoDate').value = Utils.formatDate(AppState.currentDate).full; 
     renderTodos(); 
   });
   document.getElementById('habitBtn')?.addEventListener('click', () => { 
     document.getElementById('habitModal').classList.add('active'); 
-    document.getElementById('habitDate').value = Utils.formatDate(new Date()).full; 
+    document.getElementById('habitDate').value = Utils.formatDate(AppState.currentDate).full; 
     renderHabits(); 
   });
   document.getElementById('dietBtn')?.addEventListener('click', () => { 
     document.getElementById('dietModal').classList.add('active'); 
-    document.getElementById('dietDate').value = Utils.formatDate(new Date()).full; 
+    document.getElementById('dietDate').value = Utils.formatDate(AppState.currentDate).full; 
     loadDiet(); 
   });
   document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
@@ -1148,6 +1209,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     register(email, password);
   });
   document.getElementById('logoutBtn')?.addEventListener('click', logout);
+  
+  // Bind stats buttons immediately
+  setTimeout(bindStatsButtons, 500);
   
   console.log('DayFlow initialized');
 });

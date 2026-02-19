@@ -81,6 +81,12 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 .quick-date-btn:hover { background: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
 .quick-date-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
 
+/* Today Page Date Selector */
+.today-date-selector { background: white; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.today-quick-date { padding: 8px 14px; border: 1px solid #e2e8f0; background: white; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; flex: 1; min-width: 60px; }
+.today-quick-date:hover { background: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
+.today-quick-date.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
 /* Stats Quick Date Buttons */
 .stats-quick-btn { padding: 8px 14px; border: 1px solid #e2e8f0; background: white; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; flex: 1; min-width: 60px; }
 .stats-quick-btn:hover { background: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
