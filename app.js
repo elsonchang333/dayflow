@@ -1,6 +1,6 @@
 // DayFlow App - Zeabur Version
 const SUPABASE_URL = 'https://xucrjpvmqpcrthlvrnxg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1Y3JqcHZtcXBjcnRobHZybmd4ZyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzM5OTQyNTQ0LCJleHAiOjIwNTU1MTg1NDR9.sb_publishable_Vz0N1Se112OPbNbrZz7RHg_yPRqe2AG';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1Y3JqcHZtcXBjcnRobHZybnhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NTY0ODcsImV4cCI6MjA4NzAzMjQ4N30.5hcHWVHlx1feMIbgm7jvnFWwxxS5WKmBI1g5W8L5p9E';
 
 let supabaseClient = null;
 let isOnline = false;
