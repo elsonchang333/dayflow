@@ -56,8 +56,18 @@ async function initSupabase() {
       console.log('✅ User already logged in:', user.email);
       hideAuthModal();
       
-      // FORCE load from cloud - download latest data
-      console.log('☁️ Force loading data from cloud...');
+      // Check if there's local data that needs to be uploaded first
+      const hasLocalData = AppState.todos.length > 0 || AppState.habits.length > 0 || 
+                           AppState.diaries.length > 0 || Object.keys(AppState.diet).length > 0;
+      
+      if (hasLocalData) {
+        console.log('📤 Found local data, uploading to cloud first...');
+        console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
+        await uploadLocalDataToCloud();
+      }
+      
+      // Then download from cloud
+      console.log('☁️ Downloading data from cloud...');
       await loadUserDataFromCloud();
     } else {
       console.log('👤 No user logged in');
@@ -278,6 +288,62 @@ function switchToRegister() {
 function updateUserDisplay() {
   const email = AppState.currentUser?.email || '未登录';
   document.getElementById('currentUserEmail').textContent = email;
+}
+
+// Upload local data to cloud
+async function uploadLocalDataToCloud() {
+  if (!supabaseClient || !AppState.currentUser) return;
+  
+  const userId = AppState.currentUser.id;
+  console.log('📤 Uploading local data to cloud...');
+  
+  try {
+    // Upload diet entries
+    const dietEntries = Object.entries(AppState.diet);
+    if (dietEntries.length > 0) {
+      console.log('📤 Uploading', dietEntries.length, 'diet entries...');
+      const dietsWithUser = dietEntries.map(([date, data]) => ({
+        ...data,
+        id: data.id || `${userId}_${date}`,
+        date,
+        user_id: userId
+      }));
+      const { error } = await supabaseClient.from('diet').upsert(dietsWithUser);
+      if (error) {
+        console.warn('❌ Failed to upload diet:', error);
+      } else {
+        console.log('✅ Uploaded', dietEntries.length, 'diet entries');
+      }
+    }
+    
+    // Upload todos
+    if (AppState.todos.length > 0) {
+      const todosWithUser = AppState.todos.map(t => ({ ...t, user_id: userId }));
+      const { error } = await supabaseClient.from('todos').upsert(todosWithUser);
+      if (error) console.warn('❌ Failed to upload todos:', error);
+      else console.log('✅ Uploaded', AppState.todos.length, 'todos');
+    }
+    
+    // Upload habits
+    if (AppState.habits.length > 0) {
+      const habitsWithUser = AppState.habits.map(h => ({ ...h, user_id: userId }));
+      const { error } = await supabaseClient.from('habits').upsert(habitsWithUser);
+      if (error) console.warn('❌ Failed to upload habits:', error);
+      else console.log('✅ Uploaded', AppState.habits.length, 'habits');
+    }
+    
+    // Upload diaries
+    if (AppState.diaries.length > 0) {
+      const diariesWithUser = AppState.diaries.map(d => ({ ...d, user_id: userId }));
+      const { error } = await supabaseClient.from('diaries').upsert(diariesWithUser);
+      if (error) console.warn('❌ Failed to upload diaries:', error);
+      else console.log('✅ Uploaded', AppState.diaries.length, 'diaries');
+    }
+    
+    console.log('✅ Upload complete');
+  } catch(e) {
+    console.warn('❌ Upload failed:', e);
+  }
 }
 
 // Simple load from cloud - OVERWRITE local data
