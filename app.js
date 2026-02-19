@@ -10,7 +10,8 @@ const AppState = {
   habits: [], todos: [], diet: {}, events: [], diaries: [],
   currentDate: new Date(), todoFilter: 'all', selectedDiaryMood: 3,
   currentDiaryId: null,
-  currentUser: null
+  currentUser: null,
+  statsDates: null
 };
 
 const Utils = {
@@ -380,17 +381,36 @@ function getCustomDates() {
 }
 
 function renderStats() {
-  const activePeriod = document.querySelector('.period-btn.active')?.dataset.period || 'week';
-  let dates;
-  
-  if (activePeriod === 'week') {
-    dates = getWeekDates();
-  } else if (activePeriod === 'month') {
-    dates = getMonthDates();
-  } else {
-    dates = getCustomDates();
+  // Check if we have pre-selected dates from quick buttons
+  if (AppState.statsDates && AppState.statsDates.length > 0) {
+    renderStatsWithDates(AppState.statsDates);
+    return;
   }
   
+  const activeRange = document.querySelector('.stats-quick-btn.active')?.dataset.range || 'week';
+  let dates;
+  
+  if (activeRange === 'today') {
+    dates = [Utils.formatDate(new Date()).full];
+  } else if (activeRange === 'yesterday') {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    dates = [Utils.formatDate(yesterday).full];
+  } else if (activeRange === 'week' || activeRange === 'custom') {
+    dates = getWeekDates();
+  } else if (activeRange === 'month') {
+    dates = getMonthDates();
+  } else {
+    dates = getWeekDates();
+  }
+  
+  renderHabitStats(dates);
+  renderDietStats(dates);
+  renderTodoStats(dates);
+  renderMoodStats(dates);
+}
+
+function renderStatsWithDates(dates) {
   renderHabitStats(dates);
   renderDietStats(dates);
   renderTodoStats(dates);
@@ -453,6 +473,9 @@ function renderHabitStats(dates) {
       }
     }
   });
+  
+  // Store dates for click handler reference
+  habitChart._statsDates = dates;
 }
 
 // Jump to specific date in today view
@@ -510,8 +533,17 @@ function renderDietStats(dates) {
       maintainAspectRatio: false, 
       plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
       onClick: () => {
-        const lastDate = dates[dates.length - 1];
-        jumpToDate(lastDate);
+        // Show a prompt to select which date to view
+        if (dates.length === 1) {
+          jumpToDate(dates[0]);
+        } else {
+          const dateList = dates.map((d, i) => `${i + 1}. ${d}`).join('\n');
+          const choice = prompt(`选择要查看的日期（输入 1-${dates.length}）：\n${dateList}`);
+          const index = parseInt(choice) - 1;
+          if (index >= 0 && index < dates.length) {
+            jumpToDate(dates[index]);
+          }
+        }
       }
     }
   });
@@ -536,8 +568,17 @@ function renderTodoStats(dates) {
       maintainAspectRatio: false, 
       plugins: { legend: { position: 'bottom' } },
       onClick: () => {
-        const lastDate = dates[dates.length - 1];
-        jumpToDate(lastDate);
+        // Show a prompt to select which date to view
+        if (dates.length === 1) {
+          jumpToDate(dates[0]);
+        } else {
+          const dateList = dates.map((d, i) => `${i + 1}. ${d}`).join('\n');
+          const choice = prompt(`选择要查看的日期（输入 1-${dates.length}）：\n${dateList}`);
+          const index = parseInt(choice) - 1;
+          if (index >= 0 && index < dates.length) {
+            jumpToDate(dates[index]);
+          }
+        }
       }
     }
   });
@@ -935,33 +976,89 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Stats period selector
-  document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    
-    const period = btn.dataset.period;
-    const datePicker = document.getElementById('statsDatePicker');
-    
-    if (period === 'custom') {
-      datePicker.style.display = 'block';
-      // Set default dates (last 7 days)
-      const end = new Date();
-      const start = new Date();
-      start.setDate(start.getDate() - 6);
-      document.getElementById('statsEndDate').value = Utils.formatDate(end).full;
-      document.getElementById('statsStartDate').value = Utils.formatDate(start).full;
-    } else {
-      datePicker.style.display = 'none';
-    }
-    
-    renderStats();
-  }));
+  // Stats quick date buttons
+  document.querySelectorAll('.stats-quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.stats-quick-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      const range = btn.dataset.range;
+      const datePicker = document.getElementById('statsDatePicker');
+      const customBtn = document.querySelector('.stats-quick-btn[data-range="custom"]');
+      
+      if (range === 'custom') {
+        datePicker.style.display = 'block';
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        document.getElementById('statsEndDate').value = Utils.formatDate(end).full;
+        document.getElementById('statsStartDate').value = Utils.formatDate(start).full;
+      } else {
+        datePicker.style.display = 'none';
+        
+        // Calculate dates based on selection
+        let dates;
+        const today = new Date();
+        
+        switch(range) {
+          case 'today':
+            dates = [Utils.formatDate(today).full];
+            break;
+          case 'yesterday':
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            dates = [Utils.formatDate(yesterday).full];
+            break;
+          case 'week':
+            dates = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date(today);
+              d.setDate(d.getDate() - i);
+              dates.push(Utils.formatDate(d).full);
+            }
+            break;
+          case 'month':
+            dates = [];
+            for (let i = 29; i >= 0; i--) {
+              const d = new Date(today);
+              d.setDate(d.getDate() - i);
+              dates.push(Utils.formatDate(d).full);
+            }
+            break;
+        }
+        
+        // Store selected dates and render
+        AppState.statsDates = dates;
+        renderStatsWithDates(dates);
+      }
+    });
+  });
   
   // Apply custom date range
   document.getElementById('applyStatsDate')?.addEventListener('click', () => {
-    renderStats();
+    const startDate = document.getElementById('statsStartDate').value;
+    const endDate = document.getElementById('statsEndDate').value;
+    
+    if (startDate && endDate) {
+      const dates = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(Utils.formatDate(d).full);
+      }
+      
+      AppState.statsDates = dates;
+      renderStatsWithDates(dates);
+    }
   });
+  
+  // Stats period selector (legacy, keep for compatibility)
+  document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderStats();
+  }));
   
   // Auth event listeners
   document.getElementById('loginTab')?.addEventListener('click', switchToLogin);
