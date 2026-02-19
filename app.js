@@ -207,6 +207,57 @@ async function logout() {
   }
 }
 
+// Clear all user data (for testing)
+async function clearAllData() {
+  if (!confirm('⚠️ 警告：这将删除所有数据！\n\n包括：\n- 本地数据\n- 云端数据\n\n此操作不可恢复，确定要清除吗？')) {
+    return;
+  }
+  
+  if (!confirm('再次确认：你真的要删除所有数据吗？')) {
+    return;
+  }
+  
+  try {
+    // Clear local storage
+    LocalDB.set('todos', []);
+    LocalDB.set('habits', []);
+    LocalDB.set('diet', {});
+    LocalDB.set('events', []);
+    LocalDB.set('diaries', []);
+    
+    // Clear AppState
+    AppState.todos = [];
+    AppState.habits = [];
+    AppState.diet = {};
+    AppState.events = [];
+    AppState.diaries = [];
+    
+    // Clear Supabase data if logged in
+    if (AppState.currentUser && supabaseClient) {
+      const userId = AppState.currentUser.id;
+      console.log('🗑️ Clearing Supabase data for user:', userId);
+      
+      await supabaseClient.from('todos').delete().eq('user_id', userId);
+      await supabaseClient.from('habits').delete().eq('user_id', userId);
+      await supabaseClient.from('diaries').delete().eq('user_id', userId);
+      await supabaseClient.from('diet').delete().eq('user_id', userId);
+      await supabaseClient.from('events').delete().eq('user_id', userId);
+      
+      console.log('✅ Supabase data cleared');
+    }
+    
+    // Re-render
+    renderOverview();
+    renderReview();
+    
+    alert('✅ 所有数据已清除！页面将刷新...');
+    location.reload();
+  } catch(e) {
+    console.error('❌ Failed to clear data:', e);
+    alert('❌ 清除数据失败: ' + e.message);
+  }
+}
+
 function switchToLogin() {
   document.getElementById('loginForm').style.display = 'block';
   document.getElementById('registerForm').style.display = 'none';
@@ -1247,6 +1298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('exportData')?.addEventListener('click', exportData);
   document.getElementById('importData')?.addEventListener('click', () => document.getElementById('importFile').click());
   document.getElementById('importFile')?.addEventListener('change', importData);
+  document.getElementById('clearAllData')?.addEventListener('click', clearAllData);
   document.getElementById('clearData')?.addEventListener('click', clearData);
   
   // Diary mood
