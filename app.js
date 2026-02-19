@@ -54,8 +54,18 @@ async function initSupabase() {
     if (user) {
       AppState.currentUser = user;
       console.log('✅ User already logged in:', user.email);
+      console.log('📊 Current local data before merge:');
+      console.log('  - todos:', AppState.todos.length);
+      console.log('  - habits:', AppState.habits.length);
+      console.log('  - diaries:', AppState.diaries.length);
+      console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
       hideAuthModal();
       await loadUserData();
+      console.log('📊 After merge:');
+      console.log('  - todos:', AppState.todos.length);
+      console.log('  - habits:', AppState.habits.length);
+      console.log('  - diaries:', AppState.diaries.length);
+      console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
     } else {
       console.log('👤 No user logged in');
       showAuthModal();
