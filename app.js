@@ -261,49 +261,51 @@ function initToday() {
 }
 
 function renderOverview() {
-  const today = Utils.formatDate(new Date()).full;
-  const todos = AppState.todos.filter(t => t.date === today);
+  // Use current selected date, not always today
+  const currentDate = Utils.formatDate(AppState.currentDate).full;
+  const todos = AppState.todos.filter(t => t.date === currentDate);
   const completed = todos.filter(t => t.completed).length;
   document.querySelector('#overviewTodos .overview-count').textContent = `${completed}/${todos.length}`;
   
-  const checked = AppState.habits.filter(h => (h.checkIns||[]).includes(today)).length;
+  const checked = AppState.habits.filter(h => (h.checkIns||[]).includes(currentDate)).length;
   document.querySelector('#overviewHabits .overview-count').textContent = `${checked}/${AppState.habits.length}`;
   
-  const diet = AppState.diet[today];
+  const diet = AppState.diet[currentDate];
   let cal = 0;
   if (diet) cal = (diet.breakfast?.calories||0)+(diet.lunch?.calories||0)+(diet.dinner?.calories||0)+(diet.snack?.calories||0);
   document.querySelector('#overviewDiet .overview-count').textContent = cal;
   
-  const events = AppState.events.filter(e => e.date === today).length;
+  const events = AppState.events.filter(e => e.date === currentDate).length;
   document.querySelector('#overviewEvents .overview-count').textContent = events;
 }
 
 function renderReview() {
   const container = document.getElementById('reviewContent');
-  const today = Utils.formatDate(new Date()).full;
+  // Use current selected date, not always today
+  const currentDate = Utils.formatDate(AppState.currentDate).full;
   let html = '';
   
-  const completedTodos = AppState.todos.filter(t => t.date === today && t.completed);
+  const completedTodos = AppState.todos.filter(t => t.date === currentDate && t.completed);
   if (completedTodos.length) {
     html += `<div class="review-section"><h4>✅ 完成的待办 (${completedTodos.length})</h4><ul>`;
     html += completedTodos.map(t => `<li>${t.text}</li>`).join('');
     html += '</ul></div>';
   }
   
-  const checkedHabits = AppState.habits.filter(h => (h.checkIns||[]).includes(today));
+  const checkedHabits = AppState.habits.filter(h => (h.checkIns||[]).includes(currentDate));
   if (checkedHabits.length) {
     html += `<div class="review-section"><h4>🎯 打卡的习惯 (${checkedHabits.length})</h4><ul>`;
     html += checkedHabits.map(h => `<li>${h.icon||'✨'} ${h.name}</li>`).join('');
     html += '</ul></div>';
   }
   
-  const todayDiet = AppState.diet[today];
-  if (todayDiet) {
+  const currentDiet = AppState.diet[currentDate];
+  if (currentDiet) {
     const meals = [];
-    if (todayDiet.breakfast?.food) meals.push(`早餐：${todayDiet.breakfast.food}`);
-    if (todayDiet.lunch?.food) meals.push(`午餐：${todayDiet.lunch.food}`);
-    if (todayDiet.dinner?.food) meals.push(`晚餐：${todayDiet.dinner.food}`);
-    if (todayDiet.snack?.food) meals.push(`加餐：${todayDiet.snack.food}`);
+    if (currentDiet.breakfast?.food) meals.push(`早餐：${currentDiet.breakfast.food}`);
+    if (currentDiet.lunch?.food) meals.push(`午餐：${currentDiet.lunch.food}`);
+    if (currentDiet.dinner?.food) meals.push(`晚餐：${currentDiet.dinner.food}`);
+    if (currentDiet.snack?.food) meals.push(`加餐：${currentDiet.snack.food}`);
     if (meals.length) {
       html += `<div class="review-section"><h4>🍽️ 饮食记录 (${meals.length}餐)</h4><ul>`;
       html += meals.map(m => `<li>${m}</li>`).join('');
@@ -311,16 +313,16 @@ function renderReview() {
     }
   }
   
-  const todayEvents = AppState.events.filter(e => e.date === today);
-  if (todayEvents.length) {
-    html += `<div class="review-section"><h4>📅 今日行程 (${todayEvents.length})</h4><ul>`;
-    html += todayEvents.map(e => `<li>${e.time||'全天'} - ${e.title}</li>`).join('');
+  const currentEvents = AppState.events.filter(e => e.date === currentDate);
+  if (currentEvents.length) {
+    html += `<div class="review-section"><h4>📅 今日行程 (${currentEvents.length})</h4><ul>`;
+    html += currentEvents.map(e => `<li>${e.time||'全天'} - ${e.title}</li>`).join('');
     html += '</ul></div>';
   }
   
-  const todayDiary = AppState.diaries.find(d => d.date === today);
-  if (todayDiary) {
-    html += `<div class="review-section"><h4>📖 今日日记</h4><div class="review-diary"><strong>${todayDiary.title}</strong><p>${todayDiary.content?.substring(0,100)||''}</p></div></div>`;
+  const currentDiary = AppState.diaries.find(d => d.date === currentDate);
+  if (currentDiary) {
+    html += `<div class="review-section"><h4>📖 今日日记</h4><div class="review-diary"><strong>${currentDiary.title}</strong><p>${currentDiary.content?.substring(0,100)||''}</p></div></div>`;
   }
   
   container.innerHTML = html || '<div class="review-empty">今天还没有记录任何内容，开始记录吧！</div>';
