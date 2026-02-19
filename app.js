@@ -138,7 +138,136 @@ function showPage(page) {
   document.getElementById(`${page}Page`)?.classList.add('active');
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   if (page === 'calendar') { renderCalendar(); renderDayEvents(); }
+  if (page === 'stats') { setTimeout(renderStats, 100); }
   if (page === 'diary') renderDiaryList();
+}
+
+// Statistics
+let habitChart, dietChart, todoChart, moodChart;
+
+function getWeekDates() {
+  const dates = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dates.push(Utils.formatDate(d).full);
+  }
+  return dates;
+}
+
+function renderStats() {
+  const weekDates = getWeekDates();
+  renderHabitStats(weekDates);
+  renderDietStats(weekDates);
+  renderTodoStats(weekDates);
+  renderMoodStats();
+}
+
+function renderHabitStats(dates) {
+  if (!AppState.habits.length) {
+    document.getElementById('habitRate').textContent = '0%';
+    document.getElementById('habitStreak').textContent = '0 天';
+    if (habitChart) habitChart.destroy();
+    return;
+  }
+  
+  let totalChecks = 0, totalPossible = AppState.habits.length * dates.length;
+  let maxStreak = 0;
+  
+  AppState.habits.forEach(h => {
+    let streak = h.streak || 0;
+    maxStreak = Math.max(maxStreak, streak);
+    dates.forEach(date => {
+      if ((h.checkIns || []).includes(date)) totalChecks++;
+    });
+  });
+  
+  const rate = totalPossible > 0 ? Math.round((totalChecks / totalPossible) * 100) : 0;
+  document.getElementById('habitRate').textContent = rate + '%';
+  document.getElementById('habitStreak').textContent = maxStreak + ' 天';
+  
+  const ctx = document.getElementById('habitChart');
+  if (!ctx) return;
+  
+  const data = dates.map(date => AppState.habits.filter(h => (h.checkIns || []).includes(date)).length);
+  
+  if (habitChart) habitChart.destroy();
+  habitChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: dates.map(d => d.slice(5)), datasets: [{ data: data, backgroundColor: '#3b82f6', borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+}
+
+function renderDietStats(dates) {
+  let totalCal = 0, days = 0;
+  const mealData = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+  
+  dates.forEach(date => {
+    const diet = AppState.diet[date];
+    if (diet) {
+      const dayCal = (diet.breakfast?.calories || 0) + (diet.lunch?.calories || 0) + (diet.dinner?.calories || 0) + (diet.snack?.calories || 0);
+      if (dayCal > 0) {
+        totalCal += dayCal; days++;
+        mealData.breakfast += diet.breakfast?.calories || 0;
+        mealData.lunch += diet.lunch?.calories || 0;
+        mealData.dinner += diet.dinner?.calories || 0;
+        mealData.snack += diet.snack?.calories || 0;
+      }
+    }
+  });
+  
+  document.getElementById('avgCalories').textContent = (days > 0 ? Math.round(totalCal / days) : 0) + ' 千卡';
+  document.getElementById('dietDays').textContent = days + ' 天';
+  
+  const ctx = document.getElementById('dietChart');
+  if (!ctx) return;
+  
+  if (dietChart) dietChart.destroy();
+  dietChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: ['早餐', '午餐', '晚餐', '加餐'], datasets: [{ data: [mealData.breakfast, mealData.lunch, mealData.dinner, mealData.snack], backgroundColor: ['#fbbf24', '#3b82f6', '#8b5cf6', '#f472b6'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }
+  });
+}
+
+function renderTodoStats(dates) {
+  let completed = 0, total = 0;
+  AppState.todos.forEach(t => { if (dates.includes(t.date)) { total++; if (t.completed) completed++; } });
+  
+  document.getElementById('todoRate').textContent = (total > 0 ? Math.round((completed / total) * 100) : 0) + '%';
+  document.getElementById('todoCompleted').textContent = completed + ' 个';
+  
+  const ctx = document.getElementById('todoChart');
+  if (!ctx) return;
+  
+  if (todoChart) todoChart.destroy();
+  todoChart = new Chart(ctx, {
+    type: 'pie',
+    data: { labels: ['已完成', '未完成'], datasets: [{ data: [completed, total - completed], backgroundColor: ['#10b981', '#e5e7eb'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+function renderMoodStats() {
+  const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let totalMood = 0, count = 0;
+  
+  AppState.diaries.forEach(d => { if (d.mood) { moodCounts[d.mood]++; totalMood += d.mood; count++; } });
+  
+  document.getElementById('avgMood').textContent = Utils.getMoodEmoji(count > 0 ? Math.round(totalMood / count) : 3);
+  document.getElementById('diaryCount').textContent = AppState.diaries.length + ' 篇';
+  
+  const ctx = document.getElementById('moodChart');
+  if (!ctx) return;
+  
+  if (moodChart) moodChart.destroy();
+  moodChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: ['😫', '😔', '😐', '😊', '😄'], datasets: [{ data: [moodCounts[1], moodCounts[2], moodCounts[3], moodCounts[4], moodCounts[5]], backgroundColor: ['#ef4444', '#f97316', '#94a3b8', '#3b82f6', '#10b981'], borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
 }
 
 function renderTodos() {
@@ -471,6 +600,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('todoDate')?.addEventListener('change', renderTodos);
   document.getElementById('habitDate')?.addEventListener('change', renderHabits);
   document.getElementById('dietDate')?.addEventListener('change', loadDiet);
+  
+  // Stats period selector
+  document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderStats();
+  }));
   
   console.log('DayFlow initialized');
 });

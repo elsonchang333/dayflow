@@ -57,7 +57,7 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 .calendar-date-picker input { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px; }
 .calendar-weekday { text-align: center; font-size: 12px; color: #94a3b8; padding: 8px; }
-.calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; font-size: 14px; background: white; }
+.calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; font-size: 14px; background: white; position: relative; }
 .calendar-day:hover { background: #f1f5f9; }
 .calendar-day.today { background: #3b82f6; color: white; }
 .calendar-day.has-event::after { content: ''; width: 4px; height: 4px; background: #3b82f6; border-radius: 50%; position: absolute; bottom: 4px; }
@@ -74,6 +74,20 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 .diary-mood { font-size: 18px; }
 .diary-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .diary-preview { font-size: 14px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Stats Page */
+.stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.period-selector { display: flex; gap: 8px; background: white; padding: 4px; border-radius: 10px; }
+.period-btn { padding: 8px 16px; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.period-btn.active { background: #3b82f6; color: white; }
+.stats-content { display: flex; flex-direction: column; gap: 16px; }
+.stats-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.stats-card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #1e293b; }
+.stats-chart-container { height: 200px; margin-bottom: 16px; position: relative; }
+.stats-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
+.stats-item { text-align: center; }
+.stats-label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+.stats-value { display: block; font-size: 20px; font-weight: 700; color: #1e293b; }
 
 /* Bottom Nav */
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; }
@@ -149,6 +163,7 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 /* View Diary */
 .view-diary-meta { display: flex; gap: 16px; margin-bottom: 16px; color: #94a3b8; font-size: 14px; }
 .view-diary-text { line-height: 1.8; color: #334155; }
+.view-diary-actions { margin-top: 20px; display: flex; gap: 12px; }
 
 /* Responsive */
 @media (max-width: 480px) {
