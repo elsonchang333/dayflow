@@ -121,11 +121,17 @@ async function login(email, password) {
                          AppState.diaries.length > 0 || Object.keys(AppState.diet).length > 0;
     
     if (hasLocalData) {
-      console.log('📤 检测到本地数据，正在同步到云端...');
-      await syncLocalDataToSupabase();
+      const shouldSync = confirm(`检测到本地有 ${AppState.todos.length} 条待办、${AppState.habits.length} 个习惯、${AppState.diaries.length} 篇日记、${Object.keys(AppState.diet).length} 天饮食记录。\n\n是否上传到云端？\n（选择"确定"上传本地数据，选择"取消"下载云端数据）`);
+      
+      if (shouldSync) {
+        console.log('📤 用户选择：上传本地数据到云端');
+        await syncLocalDataToSupabase();
+      } else {
+        console.log('📥 用户选择：下载云端数据（本地数据将被覆盖）');
+      }
     }
     
-    // Then load from cloud (merge with any existing cloud data)
+    // Then load from cloud
     await loadUserData();
     alert('✅ 登录成功！数据已同步');
     return true;
@@ -270,6 +276,15 @@ async function loadUserData() {
     }
     
     console.log('✅ User data loaded from Supabase');
+    
+    // Save to local storage (without triggering cloud sync)
+    LocalDB.set('todos', AppState.todos);
+    LocalDB.set('habits', AppState.habits);
+    LocalDB.set('diet', AppState.diet);
+    LocalDB.set('events', AppState.events);
+    LocalDB.set('diaries', AppState.diaries);
+    console.log('💾 Saved cloud data to local storage');
+    
     renderOverview(); renderReview();
   } catch(e) {
     console.error('❌ Failed to load user data:', e);
