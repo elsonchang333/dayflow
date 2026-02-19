@@ -64,6 +64,17 @@ async function initSupabase() {
       showAuthModal();
     }
     
+    // Listen for auth state changes (e.g., after page refresh session restored)
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Auth state changed:', event);
+      if (event === 'SIGNED_IN' && session?.user) {
+        AppState.currentUser = session.user;
+        console.log('✅ Session restored:', session.user.email);
+        hideAuthModal();
+        await loadFromCloud();
+      }
+    });
+    
     isOnline = true; 
     return true;
   } catch(e) { 
