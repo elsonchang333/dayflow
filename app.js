@@ -284,6 +284,8 @@ function updateUserDisplay() {
 async function loadFromCloud() {
   if (!AppState.currentUser || !supabaseClient) return;
   
+  updateSyncStatus('downloading');
+  
   try {
     const userId = AppState.currentUser.id;
     console.log('☁️ Loading from cloud for user:', userId);
@@ -328,9 +330,13 @@ async function loadFromCloud() {
     const totalItems = AppState.todos.length + AppState.habits.length + AppState.diaries.length + Object.keys(AppState.diet).length + AppState.events.length;
     if (totalItems > 0) {
       console.log('✅ 已同步 ' + totalItems + ' 条记录');
+      updateSyncStatus('synced');
+    } else {
+      updateSyncStatus('ready', '云端无数据');
     }
   } catch(e) {
     console.error('❌ Failed to load from cloud:', e);
+    updateSyncStatus('error', '下载失败');
   }
 }
 
@@ -507,11 +513,42 @@ async function saveData() {
   }
 }
 
+// Update sync status UI
+function updateSyncStatus(status, message) {
+  const indicator = document.getElementById('syncIndicator');
+  const statusEl = document.getElementById('syncStatus');
+  if (!indicator || !statusEl) return;
+  
+  if (status === 'uploading') {
+    indicator.style.color = '#3b82f6';
+    statusEl.innerHTML = '⏫ 上传中...';
+  } else if (status === 'downloading') {
+    indicator.style.color = '#3b82f6';
+    statusEl.innerHTML = '⏬ 下载中...';
+  } else if (status === 'synced') {
+    indicator.style.color = '#10b981';
+    statusEl.innerHTML = '✓ 已同步';
+    setTimeout(() => {
+      if (statusEl.innerHTML === '✓ 已同步') {
+        statusEl.innerHTML = '就绪';
+        indicator.style.color = '#64748b';
+      }
+    }, 2000);
+  } else if (status === 'error') {
+    indicator.style.color = '#ef4444';
+    statusEl.innerHTML = '✗ ' + (message || '同步失败');
+  } else {
+    indicator.style.color = '#64748b';
+    statusEl.innerHTML = message || '就绪';
+  }
+}
+
 // Save current state to cloud
 async function saveToCloud() {
   if (!supabaseClient || !AppState.currentUser) return;
   
   const userId = AppState.currentUser.id;
+  updateSyncStatus('uploading');
   
   try {
     // Save all data types to cloud
@@ -561,9 +598,13 @@ async function saveToCloud() {
     if (saves.length > 0) {
       await Promise.all(saves);
       console.log('✅ Saved to cloud');
+      updateSyncStatus('synced');
+    } else {
+      updateSyncStatus('ready', '无数据');
     }
   } catch(e) {
     console.warn('❌ Failed to save to cloud:', e);
+    updateSyncStatus('error', '上传失败');
   }
 }
 
