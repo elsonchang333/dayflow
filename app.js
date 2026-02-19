@@ -429,8 +429,52 @@ function renderHabitStats(dates) {
   habitChart = new Chart(ctx, {
     type: 'bar',
     data: { labels: dates.map(d => d.slice(5)), datasets: [{ data: data, backgroundColor: '#3b82f6', borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      plugins: { 
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function(context) {
+              const index = context[0].dataIndex;
+              return dates[index];
+            }
+          }
+        }
+      }, 
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      onClick: (e, elements) => {
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          const selectedDate = dates[index];
+          jumpToDate(selectedDate);
+        }
+      }
+    }
   });
+}
+
+// Jump to specific date in today view
+function jumpToDate(date) {
+  // Switch to today page
+  showPage('today');
+  
+  // Update current date display
+  const d = new Date(date);
+  AppState.currentDate = d;
+  
+  // Update date display
+  const formatted = Utils.formatDate(d);
+  document.getElementById('currentDate').textContent = `${formatted.month}${formatted.date}日`;
+  document.getElementById('currentWeekday').textContent = formatted.weekday;
+  
+  // Re-render with new date
+  renderOverview();
+  renderReview();
+  
+  // Show a toast or highlight
+  alert(`已切换到 ${formatted.full}，点击下方按钮编辑数据`);
 }
 
 function renderDietStats(dates) {
@@ -461,7 +505,15 @@ function renderDietStats(dates) {
   dietChart = new Chart(ctx, {
     type: 'doughnut',
     data: { labels: ['早餐', '午餐', '晚餐', '加餐'], datasets: [{ data: [mealData.breakfast, mealData.lunch, mealData.dinner, mealData.snack], backgroundColor: ['#fbbf24', '#3b82f6', '#8b5cf6', '#f472b6'] }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+      onClick: () => {
+        const lastDate = dates[dates.length - 1];
+        jumpToDate(lastDate);
+      }
+    }
   });
 }
 
@@ -479,7 +531,15 @@ function renderTodoStats(dates) {
   todoChart = new Chart(ctx, {
     type: 'pie',
     data: { labels: ['已完成', '未完成'], datasets: [{ data: [completed, total - completed], backgroundColor: ['#10b981', '#e5e7eb'] }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    options: { 
+      responsive: true, 
+      maintainAspectRatio: false, 
+      plugins: { legend: { position: 'bottom' } },
+      onClick: () => {
+        const lastDate = dates[dates.length - 1];
+        jumpToDate(lastDate);
+      }
+    }
   });
 }
 
