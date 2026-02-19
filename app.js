@@ -428,11 +428,21 @@ async function syncToSupabase() {
 }
 
 function loadData() {
+  console.log('📂 Loading data from LocalStorage...');
   AppState.todos = LocalDB.get('todos') || [];
   AppState.habits = LocalDB.get('habits') || [];
   AppState.diet = LocalDB.get('diet') || {};
   AppState.events = LocalDB.get('events') || [];
   AppState.diaries = LocalDB.get('diaries') || [];
+  console.log('📂 Loaded from LocalStorage:');
+  console.log('  - todos:', AppState.todos.length);
+  console.log('  - habits:', AppState.habits.length);
+  console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
+  console.log('  - events:', AppState.events.length);
+  console.log('  - diaries:', AppState.diaries.length);
+  
+  // Debug: show raw localStorage
+  console.log('📂 Raw localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('dayflow_')));
 }
 
 async function saveData() {
