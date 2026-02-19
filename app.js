@@ -277,70 +277,112 @@ function updateUserDisplay() {
   document.getElementById('currentUserEmail').textContent = email;
 }
 
-// Load user data from Supabase
+// Load user data from Supabase and MERGE with local data
 async function loadUserData() {
   if (!AppState.currentUser) return;
   
   try {
     const userId = AppState.currentUser.id;
     console.log('📥 Loading data from Supabase for user:', userId);
+    console.log('📥 Current local diet data:', AppState.diet);
     
-    // Load todos
+    // Load todos - merge strategy: cloud + local (prefer local if same id)
     const { data: todos, error: todosError } = await supabaseClient.from('todos').select('*').eq('user_id', userId);
     if (todosError) console.warn('❌ Failed to load todos:', todosError);
-    else if (todos) {
-      AppState.todos = todos;
-      console.log('✅ Loaded', todos.length, 'todos');
+    else if (todos && todos.length > 0) {
+      // Merge: start with cloud, add local items that don't exist in cloud
+      const cloudIds = new Set(todos.map(t => t.id));
+      const localOnlyTodos = AppState.todos.filter(t => !cloudIds.has(t.id));
+      AppState.todos = [...todos, ...localOnlyTodos];
+      console.log('✅ Merged', todos.length, 'cloud todos +', localOnlyTodos.length, 'local todos');
     }
     
-    // Load habits
+    // Load habits - merge strategy
     const { data: habits, error: habitsError } = await supabaseClient.from('habits').select('*').eq('user_id', userId);
     if (habitsError) console.warn('❌ Failed to load habits:', habitsError);
-    else if (habits) {
-      AppState.habits = habits;
-      console.log('✅ Loaded', habits.length, 'habits');
+    else if (habits && habits.length > 0) {
+      const cloudIds = new Set(habits.map(h => h.id));
+      const localOnlyHabits = AppState.habits.filter(h => !cloudIds.has(h.id));
+      AppState.habits = [...habits, ...localOnlyHabits];
+      console.log('✅ Merged', habits.length, 'cloud habits +', localOnlyHabits.length, 'local habits');
     }
     
-    // Load diaries
+    // Load diaries - merge strategy
     const { data: diaries, error: diariesError } = await supabaseClient.from('diaries').select('*').eq('user_id', userId);
     if (diariesError) console.warn('❌ Failed to load diaries:', diariesError);
-    else if (diaries) {
-      AppState.diaries = diaries;
-      console.log('✅ Loaded', diaries.length, 'diaries');
+    else if (diaries && diaries.length > 0) {
+      const cloudIds = new Set(diaries.map(d => d.id));
+      const localOnlyDiaries = AppState.diaries.filter(d => !cloudIds.has(d.id));
+      AppState.diaries = [...diaries, ...localOnlyDiaries];
+      console.log('✅ Merged', diaries.length, 'cloud diaries +', localOnlyDiaries.length, 'local diaries');
     }
     
-    // Load diet
+    // Load diet - merge strategy: merge by date
     const { data: diets, error: dietsError } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
     if (dietsError) console.warn('❌ Failed to load diet:', dietsError);
-    else if (diets) {
-      AppState.diet = {};
-      diets.forEach(d => AppState.diet[d.date] = d);
-      console.log('✅ Loaded', diets.length, 'diet entries');
-      console.log('📥 Loaded diets raw data:', diets);
-      console.log('📥 AppState.diet after load:', AppState.diet);
+    else if (diets && diets.length > 0) {
+      // Merge: local diet takes priority, add cloud entries for dates not in local
+      diets.forEach(d => {
+        if (!AppState.diet[d.date]) {
+          AppState.diet[d.date] = d;
+        }
+      });
+      console.log('✅ Merged diet:', Object.keys(AppState.diet).length, 'total dates');
     }
+    console.log('📥 Final AppState.diet:', AppState.diet);
     
-    // Load events
+    // Load events - merge strategy
     const { data: events, error: eventsError } = await supabaseClient.from('events').select('*').eq('user_id', userId);
     if (eventsError) console.warn('❌ Failed to load events:', eventsError);
-    else if (events) {
-      AppState.events = events;
-      console.log('✅ Loaded', events.length, 'events');
+    else if (events && events.length > 0) {
+      const cloudIds = new Set(events.map(e => e.id));
+      const localOnlyEvents = AppState.events.filter(e => !cloudIds.has(e.id));
+      AppState.events = [...events, ...localOnlyEvents];
+      console.log('✅ Merged', events.length, 'cloud events +', localOnlyEvents.length, 'local events');
     }
     
-    console.log('✅ User data loaded from Supabase');
+    console.log('✅ User data merged from Supabase');
     
-    // Save to local storage (without triggering cloud sync)
+    // Save merged data to local storage
     LocalDB.set('todos', AppState.todos);
     LocalDB.set('habits', AppState.habits);
     LocalDB.set('diet', AppState.diet);
     LocalDB.set('events', AppState.events);
     LocalDB.set('diaries', AppState.diaries);
-    console.log('💾 Saved cloud data to local storage');
+    console.log('💾 Saved merged data to local storage');
+    
+    // Sync local-only data to cloud
+    await syncLocalOnlyDataToCloud(userId);
     
     renderOverview(); renderReview();
   } catch(e) {
     console.error('❌ Failed to load user data:', e);
+  }
+}
+
+// Sync data that only exists locally to the cloud
+async function syncLocalOnlyDataToCloud(userId) {
+  try {
+    console.log('🔄 Syncing local-only data to cloud...');
+    
+    // Sync diet entries
+    const dietEntries = Object.entries(AppState.diet);
+    for (const [date, data] of dietEntries) {
+      if (!data.user_id) {
+        const dietWithUser = { 
+          ...data, 
+          id: data.id || `${userId}_${date}`,
+          date, 
+          user_id: userId 
+        };
+        const { error } = await supabaseClient.from('diet').upsert(dietWithUser);
+        if (error) console.warn('Failed to sync diet:', error);
+      }
+    }
+    
+    console.log('✅ Local-only data synced to cloud');
+  } catch(e) {
+    console.warn('❌ Failed to sync local data:', e);
   }
 }
 
@@ -1242,7 +1284,12 @@ function resetTimer() { clearInterval(timerInterval); running = false; timeLeft 
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
-  await initSupabase(); loadData(); initToday();
+  // IMPORTANT: Load local data FIRST before any cloud sync
+  loadData();
+  initToday();
+  
+  // Then init Supabase (which may load cloud data and merge)
+  await initSupabase();
   
   // Navigation
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
