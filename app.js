@@ -316,6 +316,8 @@ async function loadUserData() {
       AppState.diet = {};
       diets.forEach(d => AppState.diet[d.date] = d);
       console.log('✅ Loaded', diets.length, 'diet entries');
+      console.log('📥 Loaded diets raw data:', diets);
+      console.log('📥 AppState.diet after load:', AppState.diet);
     }
     
     // Load events
@@ -493,6 +495,10 @@ function initToday() {
 function renderOverview() {
   // Use current selected date, not always today
   const currentDate = Utils.formatDate(AppState.currentDate).full;
+  console.log('📊 renderOverview - currentDate:', currentDate);
+  console.log('📊 AppState.diet:', AppState.diet);
+  console.log('📊 AppState.diet[currentDate]:', AppState.diet[currentDate]);
+  
   const todos = AppState.todos.filter(t => t.date === currentDate);
   const completed = todos.filter(t => t.completed).length;
   document.querySelector('#overviewTodos .overview-count').textContent = `${completed}/${todos.length}`;
@@ -1021,6 +1027,8 @@ function updateTotalCal() {
 
 function saveDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
+  console.log('💾 saveDiet - saving for date:', date);
+  
   const get = id => document.getElementById(id)?.value || '';
   const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
   
@@ -1036,6 +1044,8 @@ function saveDiet() {
     dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, 
     snack: {food:get('snackInput'),calories:getNum('snackCal')} 
   };
+  
+  console.log('💾 saveDiet - AppState.diet:', AppState.diet);
   
   saveData(); 
   document.getElementById('dietModal').classList.remove('active'); 
