@@ -232,7 +232,15 @@
     <div class="modal" id="todoModal">
       <div class="modal-content">
         <div class="modal-header"><h3>待办事项</h3><button class="btn-close" id="closeTodo"><i class="fas fa-times"></i></button></div>
-        <div class="todo-date-selector"><label>选择日期</label><input type="date" id="todoDate"></div>
+        <div class="todo-date-selector">
+          <label>选择日期</label>
+          <input type="date" id="todoDate">
+          <div class="quick-date-btns" style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="quick-date-btn" data-target="todoDate" data-offset="-1">昨天</button>
+            <button class="quick-date-btn" data-target="todoDate" data-offset="0">今天</button>
+            <button class="quick-date-btn" data-target="todoDate" data-offset="-7">7天前</button>
+          </div>
+        </div>
         <div class="todo-input-wrapper"><input type="text" id="todoInput" placeholder="添加新的待办事项..."><button id="addTodoBtn"><i class="fas fa-plus"></i></button></div>
         <div class="todo-list" id="todoList"></div>
       </div>
@@ -241,7 +249,15 @@
     <div class="modal" id="habitModal">
       <div class="modal-content">
         <div class="modal-header"><h3>习惯打卡</h3><button class="btn-close" id="closeHabit"><i class="fas fa-times"></i></button></div>
-        <div class="habit-date-selector"><label>选择日期</label><input type="date" id="habitDate"></div>
+        <div class="habit-date-selector">
+          <label>选择日期</label>
+          <input type="date" id="habitDate">
+          <div class="quick-date-btns" style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="quick-date-btn" data-target="habitDate" data-offset="-1">昨天</button>
+            <button class="quick-date-btn" data-target="habitDate" data-offset="0">今天</button>
+            <button class="quick-date-btn" data-target="habitDate" data-offset="-7">7天前</button>
+          </div>
+        </div>
         <div class="habit-input-wrapper">
           <input type="text" id="habitInput" placeholder="添加新习惯...">
           <select id="habitIcon"><option value="💧">💧 水</option><option value="🏃">🏃 运动</option><option value="📖">📖 阅读</option><option value="🧘">🧘 冥想</option><option value="💤">💤 早睡</option></select>
@@ -254,7 +270,15 @@
     <div class="modal" id="dietModal">
       <div class="modal-content">
         <div class="modal-header"><h3>🍽️ 饮食记录</h3><button class="btn-close" id="closeDiet"><i class="fas fa-times"></i></button></div>
-        <div class="diet-date-selector"><label>选择日期</label><input type="date" id="dietDate"></div>
+        <div class="diet-date-selector">
+          <label>选择日期</label>
+          <input type="date" id="dietDate">
+          <div class="quick-date-btns" style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="quick-date-btn" data-target="dietDate" data-offset="-1">昨天</button>
+            <button class="quick-date-btn" data-target="dietDate" data-offset="0">今天</button>
+            <button class="quick-date-btn" data-target="dietDate" data-offset="-7">7天前</button>
+          </div>
+        </div>
         <div class="meal-section"><h4>🌅 早餐</h4><div class="meal-input-wrapper"><input type="text" id="breakfastInput" placeholder="吃了什么？"><input type="number" id="breakfastCal" placeholder="卡路里" min="0"></div></div>
         <div class="meal-section"><h4>☀️ 午餐</h4><div class="meal-input-wrapper"><input type="text" id="lunchInput" placeholder="吃了什么？"><input type="number" id="lunchCal" placeholder="卡路里" min="0"></div></div>
         <div class="meal-section"><h4>🌙 晚餐</h4><div class="meal-input-wrapper"><input type="text" id="dinnerInput" placeholder="吃了什么？"><input type="number" id="dinnerCal" placeholder="卡路里" min="0"></div></div>

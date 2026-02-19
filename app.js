@@ -786,9 +786,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
   
   // Quick actions
-  document.getElementById('todoBtn')?.addEventListener('click', () => { document.getElementById('todoModal').classList.add('active'); document.getElementById('todoDate').value = Utils.formatDate(new Date()).full; renderTodos(); });
-  document.getElementById('habitBtn')?.addEventListener('click', () => { document.getElementById('habitModal').classList.add('active'); document.getElementById('habitDate').value = Utils.formatDate(new Date()).full; renderHabits(); });
-  document.getElementById('dietBtn')?.addEventListener('click', () => { document.getElementById('dietModal').classList.add('active'); document.getElementById('dietDate').value = Utils.formatDate(new Date()).full; loadDiet(); });
+  document.getElementById('todoBtn')?.addEventListener('click', () => { 
+    document.getElementById('todoModal').classList.add('active'); 
+    document.getElementById('todoDate').value = Utils.formatDate(new Date()).full; 
+    renderTodos(); 
+  });
+  document.getElementById('habitBtn')?.addEventListener('click', () => { 
+    document.getElementById('habitModal').classList.add('active'); 
+    document.getElementById('habitDate').value = Utils.formatDate(new Date()).full; 
+    renderHabits(); 
+  });
+  document.getElementById('dietBtn')?.addEventListener('click', () => { 
+    document.getElementById('dietModal').classList.add('active'); 
+    document.getElementById('dietDate').value = Utils.formatDate(new Date()).full; 
+    loadDiet(); 
+  });
   document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
   
   // Close modals
@@ -845,6 +857,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('habitDate')?.addEventListener('change', renderHabits);
   document.getElementById('dietDate')?.addEventListener('change', loadDiet);
   
+  // Quick date buttons for todos, habits, diet
+  document.querySelectorAll('.quick-date-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target;
+      const offset = parseInt(btn.dataset.offset);
+      const targetInput = document.getElementById(targetId);
+      
+      if (targetInput) {
+        const date = new Date();
+        date.setDate(date.getDate() + offset);
+        targetInput.value = Utils.formatDate(date).full;
+        
+        // Trigger change event to reload data
+        targetInput.dispatchEvent(new Event('change'));
+      }
+    });
+  });
+
   // Stats period selector
   document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));

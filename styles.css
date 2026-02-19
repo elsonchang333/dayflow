@@ -75,6 +75,12 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 .diary-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .diary-preview { font-size: 14px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Quick Date Buttons */
+.quick-date-btns { display: flex; gap: 8px; margin-top: 8px; }
+.quick-date-btn { padding: 6px 12px; border: 1px solid #e2e8f0; background: white; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.quick-date-btn:hover { background: #f1f5f9; border-color: #3b82f6; color: #3b82f6; }
+.quick-date-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
 /* Stats Page */
 .stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .period-selector { display: flex; gap: 8px; background: white; padding: 4px; border-radius: 10px; }
