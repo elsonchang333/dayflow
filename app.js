@@ -371,6 +371,52 @@ async function loadFromCloud() {
   }
 }
 
+// Diagnose cloud data status
+async function diagnoseCloudData() {
+  if (!supabaseClient || !AppState.currentUser) {
+    alert('请先登录');
+    return;
+  }
+  
+  const userId = AppState.currentUser.id;
+  let report = '🔍 云端数据诊断报告\n\n';
+  report += '用户ID: ' + userId + '\n\n';
+  
+  try {
+    // Check each table
+    const tables = ['todos', 'habits', 'diaries', 'diet', 'events'];
+    
+    for (const table of tables) {
+      const { data, error } = await supabaseClient
+        .from(table)
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (error) {
+        report += `❌ ${table}: 查询失败 - ${error.message}\n`;
+      } else {
+        report += `✅ ${table}: ${data?.length || 0} 条记录\n`;
+        if (data && data.length > 0) {
+          report += `   样例: ${JSON.stringify(data[0]).substring(0, 100)}...\n`;
+        }
+      }
+    }
+    
+    report += '\n📊 本地数据:\n';
+    report += `  - todos: ${AppState.todos.length}\n`;
+    report += `  - habits: ${AppState.habits.length}\n`;
+    report += `  - diaries: ${AppState.diaries.length}\n`;
+    report += `  - diet: ${Object.keys(AppState.diet).length}\n`;
+    report += `  - events: ${AppState.events.length}\n`;
+    
+    alert(report);
+    console.log(report);
+  } catch(e) {
+    alert('诊断失败: ' + e.message);
+    console.error(e);
+  }
+}
+
 // Load user data from Supabase and MERGE with local data
 async function loadUserData() {
   if (!AppState.currentUser) return;
@@ -1586,6 +1632,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('importData')?.addEventListener('click', () => document.getElementById('importFile').click());
   document.getElementById('importFile')?.addEventListener('change', importData);
   document.getElementById('clearAllData')?.addEventListener('click', clearAllData);
+  
+  // Manual sync button
+  document.getElementById('forceSyncBtn')?.addEventListener('click', async () => {
+    if (!AppState.currentUser) {
+      alert('请先登录');
+      return;
+    }
+    updateSyncStatus('downloading');
+    await loadFromCloud();
+    alert('同步完成！');
+  });
+  
+  // Diagnose button
+  document.getElementById('diagnoseBtn')?.addEventListener('click', diagnoseCloudData);
   document.getElementById('clearData')?.addEventListener('click', clearData);
   
   // Diary mood
