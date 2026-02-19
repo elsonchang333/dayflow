@@ -486,9 +486,16 @@ async function saveToSupabase(table, data) {
 }
 
 function initToday() {
-  const today = Utils.formatDate(new Date());
+  // Reset to today on page load
+  AppState.currentDate = new Date();
+  const today = Utils.formatDate(AppState.currentDate);
   document.getElementById('currentDate').textContent = `${today.month}${today.date}日`;
   document.getElementById('currentWeekday').textContent = today.weekday;
+  
+  // Update date picker to today
+  const datePicker = document.getElementById('todayDatePicker');
+  if (datePicker) datePicker.value = today.full;
+  
   renderOverview(); renderReview();
 }
 
