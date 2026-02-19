@@ -333,8 +333,77 @@ function showPage(page) {
   document.getElementById(`${page}Page`)?.classList.add('active');
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
   if (page === 'calendar') { renderCalendar(); renderDayEvents(); }
-  if (page === 'stats') { setTimeout(renderStats, 100); }
+  if (page === 'stats') { 
+    setTimeout(() => {
+      renderStats();
+      bindStatsButtons();
+    }, 100); 
+  }
   if (page === 'diary') renderDiaryList();
+}
+
+// Bind stats page buttons (called when stats page is shown)
+function bindStatsButtons() {
+  // Stats quick date buttons
+  document.querySelectorAll('.stats-quick-btn').forEach(btn => {
+    // Remove existing listener to avoid duplicates
+    btn.replaceWith(btn.cloneNode(true));
+  });
+  
+  // Re-add listeners
+  document.querySelectorAll('.stats-quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.stats-quick-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      const range = btn.dataset.range;
+      const datePicker = document.getElementById('statsDatePicker');
+      
+      if (range === 'custom') {
+        datePicker.style.display = 'block';
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        document.getElementById('statsEndDate').value = Utils.formatDate(end).full;
+        document.getElementById('statsStartDate').value = Utils.formatDate(start).full;
+      } else {
+        datePicker.style.display = 'none';
+        
+        let dates;
+        const today = new Date();
+        
+        switch(range) {
+          case 'today':
+            dates = [Utils.formatDate(today).full];
+            break;
+          case 'yesterday':
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            dates = [Utils.formatDate(yesterday).full];
+            break;
+          case 'week':
+            dates = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date(today);
+              d.setDate(d.getDate() - i);
+              dates.push(Utils.formatDate(d).full);
+            }
+            break;
+          case 'month':
+            dates = [];
+            for (let i = 29; i >= 0; i--) {
+              const d = new Date(today);
+              d.setDate(d.getDate() - i);
+              dates.push(Utils.formatDate(d).full);
+            }
+            break;
+        }
+        
+        AppState.statsDates = dates;
+        renderStatsWithDates(dates);
+      }
+    });
+  });
 }
 
 // Statistics
