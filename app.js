@@ -56,19 +56,9 @@ async function initSupabase() {
       console.log('✅ User already logged in:', user.email);
       hideAuthModal();
       
-      // Check if there's local data that needs to be uploaded first
-      const hasLocalData = AppState.todos.length > 0 || AppState.habits.length > 0 || 
-                           AppState.diaries.length > 0 || Object.keys(AppState.diet).length > 0;
-      
-      if (hasLocalData) {
-        console.log('📤 Found local data, uploading to cloud first...');
-        console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
-        await uploadLocalDataToCloud();
-      }
-      
-      // Then download from cloud
-      console.log('☁️ Downloading data from cloud...');
-      await loadUserDataFromCloud();
+      // ALWAYS download from cloud on login
+      console.log('☁️ Loading data from cloud...');
+      await loadFromCloud();
     } else {
       console.log('👤 No user logged in');
       showAuthModal();
@@ -290,71 +280,15 @@ function updateUserDisplay() {
   document.getElementById('currentUserEmail').textContent = email;
 }
 
-// Upload local data to cloud
-async function uploadLocalDataToCloud() {
-  if (!supabaseClient || !AppState.currentUser) return;
-  
-  const userId = AppState.currentUser.id;
-  console.log('📤 Uploading local data to cloud...');
-  
-  try {
-    // Upload diet entries
-    const dietEntries = Object.entries(AppState.diet);
-    if (dietEntries.length > 0) {
-      console.log('📤 Uploading', dietEntries.length, 'diet entries...');
-      const dietsWithUser = dietEntries.map(([date, data]) => ({
-        ...data,
-        id: data.id || `${userId}_${date}`,
-        date,
-        user_id: userId
-      }));
-      const { error } = await supabaseClient.from('diet').upsert(dietsWithUser);
-      if (error) {
-        console.warn('❌ Failed to upload diet:', error);
-      } else {
-        console.log('✅ Uploaded', dietEntries.length, 'diet entries');
-      }
-    }
-    
-    // Upload todos
-    if (AppState.todos.length > 0) {
-      const todosWithUser = AppState.todos.map(t => ({ ...t, user_id: userId }));
-      const { error } = await supabaseClient.from('todos').upsert(todosWithUser);
-      if (error) console.warn('❌ Failed to upload todos:', error);
-      else console.log('✅ Uploaded', AppState.todos.length, 'todos');
-    }
-    
-    // Upload habits
-    if (AppState.habits.length > 0) {
-      const habitsWithUser = AppState.habits.map(h => ({ ...h, user_id: userId }));
-      const { error } = await supabaseClient.from('habits').upsert(habitsWithUser);
-      if (error) console.warn('❌ Failed to upload habits:', error);
-      else console.log('✅ Uploaded', AppState.habits.length, 'habits');
-    }
-    
-    // Upload diaries
-    if (AppState.diaries.length > 0) {
-      const diariesWithUser = AppState.diaries.map(d => ({ ...d, user_id: userId }));
-      const { error } = await supabaseClient.from('diaries').upsert(diariesWithUser);
-      if (error) console.warn('❌ Failed to upload diaries:', error);
-      else console.log('✅ Uploaded', AppState.diaries.length, 'diaries');
-    }
-    
-    console.log('✅ Upload complete');
-  } catch(e) {
-    console.warn('❌ Upload failed:', e);
-  }
-}
-
-// Simple load from cloud - OVERWRITE local data
-async function loadUserDataFromCloud() {
-  if (!AppState.currentUser) return;
+// Simple load from cloud - OVERWRITE everything
+async function loadFromCloud() {
+  if (!AppState.currentUser || !supabaseClient) return;
   
   try {
     const userId = AppState.currentUser.id;
-    console.log('☁️ Downloading data from cloud for user:', userId);
+    console.log('☁️ Loading from cloud for user:', userId);
     
-    // Load all data types
+    // Load all data from cloud
     const [{ data: todos }, { data: habits }, { data: diaries }, { data: diets }, { data: events }] = await Promise.all([
       supabaseClient.from('todos').select('*').eq('user_id', userId),
       supabaseClient.from('habits').select('*').eq('user_id', userId),
@@ -363,40 +297,40 @@ async function loadUserDataFromCloud() {
       supabaseClient.from('events').select('*').eq('user_id', userId)
     ]);
     
-    // Overwrite local data
-    if (todos) AppState.todos = todos;
-    if (habits) AppState.habits = habits;
-    if (diaries) AppState.diaries = diaries;
-    if (events) AppState.events = events;
+    // OVERWRITE local state with cloud data
+    AppState.todos = todos || [];
+    AppState.habits = habits || [];
+    AppState.diaries = diaries || [];
+    AppState.events = events || [];
     
+    AppState.diet = {};
     if (diets) {
-      AppState.diet = {};
       diets.forEach(d => AppState.diet[d.date] = d);
     }
     
-    console.log('✅ Downloaded from cloud:');
+    console.log('✅ Loaded from cloud:');
     console.log('  - todos:', AppState.todos.length);
     console.log('  - habits:', AppState.habits.length);
     console.log('  - diaries:', AppState.diaries.length);
-    console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
+    console.log('  - diet:', Object.keys(AppState.diet).length);
     console.log('  - events:', AppState.events.length);
     
-    // Save to localStorage
+    // Save to localStorage as cache
     LocalDB.set('todos', AppState.todos);
     LocalDB.set('habits', AppState.habits);
     LocalDB.set('diet', AppState.diet);
     LocalDB.set('events', AppState.events);
     LocalDB.set('diaries', AppState.diaries);
-    console.log('💾 Saved cloud data to localStorage');
     
     renderOverview();
     renderReview();
     
-    if (Object.keys(AppState.diet).length > 0) {
-      alert('✅ 已同步 ' + Object.keys(AppState.diet).length + ' 条饮食记录！');
+    const totalItems = AppState.todos.length + AppState.habits.length + AppState.diaries.length + Object.keys(AppState.diet).length + AppState.events.length;
+    if (totalItems > 0) {
+      console.log('✅ 已同步 ' + totalItems + ' 条记录');
     }
   } catch(e) {
-    console.error('❌ Failed to download from cloud:', e);
+    console.error('❌ Failed to load from cloud:', e);
   }
 }
 
@@ -559,16 +493,77 @@ function loadData() {
 }
 
 async function saveData() {
+  // Always save to localStorage first (as cache)
   LocalDB.set('todos', AppState.todos);
   LocalDB.set('habits', AppState.habits);
   LocalDB.set('diet', AppState.diet);
   LocalDB.set('events', AppState.events);
   LocalDB.set('diaries', AppState.diaries);
   
-  // Auto-sync to Supabase if logged in
+  // ALWAYS upload to cloud if logged in
   if (AppState.currentUser && supabaseClient) {
-    console.log('🔄 Auto-syncing to Supabase...');
-    await autoSyncToSupabase();
+    console.log('☁️ Saving to cloud...');
+    await saveToCloud();
+  }
+}
+
+// Save current state to cloud
+async function saveToCloud() {
+  if (!supabaseClient || !AppState.currentUser) return;
+  
+  const userId = AppState.currentUser.id;
+  
+  try {
+    // Save all data types to cloud
+    const saves = [];
+    
+    // Todos
+    if (AppState.todos.length > 0) {
+      saves.push(supabaseClient.from('todos').upsert(
+        AppState.todos.map(t => ({ ...t, user_id: userId }))
+      ));
+    }
+    
+    // Habits  
+    if (AppState.habits.length > 0) {
+      saves.push(supabaseClient.from('habits').upsert(
+        AppState.habits.map(h => ({ ...h, user_id: userId }))
+      ));
+    }
+    
+    // Diaries
+    if (AppState.diaries.length > 0) {
+      saves.push(supabaseClient.from('diaries').upsert(
+        AppState.diaries.map(d => ({ ...d, user_id: userId }))
+      ));
+    }
+    
+    // Diet
+    const dietEntries = Object.entries(AppState.diet);
+    if (dietEntries.length > 0) {
+      saves.push(supabaseClient.from('diet').upsert(
+        dietEntries.map(([date, data]) => ({
+          ...data,
+          id: data.id || `${userId}_${date}`,
+          date,
+          user_id: userId
+        }))
+      ));
+    }
+    
+    // Events
+    if (AppState.events.length > 0) {
+      saves.push(supabaseClient.from('events').upsert(
+        AppState.events.map(e => ({ ...e, user_id: userId }))
+      ));
+    }
+    
+    if (saves.length > 0) {
+      await Promise.all(saves);
+      console.log('✅ Saved to cloud');
+    }
+  } catch(e) {
+    console.warn('❌ Failed to save to cloud:', e);
   }
 }
 
@@ -1417,11 +1412,11 @@ function resetTimer() { clearInterval(timerInterval); running = false; timeLeft 
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
-  // IMPORTANT: Load local data FIRST before any cloud sync
+  // Load local cache first (for fast display)
   loadData();
   initToday();
   
-  // Then init Supabase (which may load cloud data and merge)
+  // Then init Supabase - will download from cloud if logged in
   await initSupabase();
   
   // Navigation
