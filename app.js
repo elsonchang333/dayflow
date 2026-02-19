@@ -49,31 +49,44 @@ async function initSupabase() {
     
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    // Check if user is already logged in
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-      AppState.currentUser = user;
-      console.log('✅ User already logged in:', user.email);
-      hideAuthModal();
-      
-      // ALWAYS download from cloud on login
-      console.log('☁️ Loading data from cloud...');
-      await loadFromCloud();
-    } else {
-      console.log('👤 No user logged in');
-      showAuthModal();
-    }
+    let hasLoadedFromCloud = false;
     
-    // Listen for auth state changes (e.g., after page refresh session restored)
+    // Listen for auth state changes FIRST (before checking getUser)
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 Auth state changed:', event);
-      if (event === 'SIGNED_IN' && session?.user) {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        if (hasLoadedFromCloud) {
+          console.log('⏭️ Already loaded from cloud, skipping');
+          return;
+        }
+        hasLoadedFromCloud = true;
         AppState.currentUser = session.user;
-        console.log('✅ Session restored:', session.user.email);
+        console.log('✅ Session active:', session.user.email);
         hideAuthModal();
+        console.log('☁️ Loading data from cloud (auth change)...');
         await loadFromCloud();
       }
     });
+    
+    // Also check getUser() for immediate session
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user && !hasLoadedFromCloud) {
+      hasLoadedFromCloud = true;
+      AppState.currentUser = user;
+      console.log('✅ User already logged in:', user.email);
+      hideAuthModal();
+      console.log('☁️ Loading data from cloud (getUser)...');
+      await loadFromCloud();
+    } else if (!user) {
+      console.log('👤 No user logged in (getUser)');
+      // Don't show auth modal immediately, wait for onAuthStateChange
+      setTimeout(() => {
+        if (!hasLoadedFromCloud && !AppState.currentUser) {
+          console.log('👤 Confirmed: no user after timeout');
+          showAuthModal();
+        }
+      }, 2000);
+    }
     
     isOnline = true; 
     return true;
@@ -342,6 +355,13 @@ async function loadFromCloud() {
     if (totalItems > 0) {
       console.log('✅ 已同步 ' + totalItems + ' 条记录');
       updateSyncStatus('synced');
+      
+      // Force re-render to ensure UI shows data
+      setTimeout(() => {
+        console.log('🔄 Force re-render after cloud load');
+        renderOverview();
+        renderReview();
+      }, 100);
     } else {
       updateSyncStatus('ready', '云端无数据');
     }
