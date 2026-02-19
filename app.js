@@ -163,9 +163,14 @@ async function syncLocalDataToSupabase() {
       if (error) console.warn('Failed to sync diary:', error);
     }
     
-    // Sync diet
+    // Sync diet - ensure each diet entry has an id
     for (const [date, dietData] of Object.entries(AppState.diet)) {
-      const dietWithUser = { ...dietData, date, user_id: userId };
+      const dietWithUser = { 
+        ...dietData, 
+        id: dietData.id || `${userId}_${date}`, // Create unique id if not exists
+        date, 
+        user_id: userId 
+      };
       const { error } = await supabaseClient.from('diet').upsert(dietWithUser);
       if (error) console.warn('Failed to sync diet:', error);
     }
@@ -297,6 +302,61 @@ function saveData() {
   LocalDB.set('diet', AppState.diet);
   LocalDB.set('events', AppState.events);
   LocalDB.set('diaries', AppState.diaries);
+  
+  // Auto-sync to Supabase if logged in
+  if (AppState.currentUser && supabaseClient) {
+    autoSyncToSupabase();
+  }
+}
+
+// Auto sync all data to Supabase (lightweight version for frequent saves)
+async function autoSyncToSupabase() {
+  if (!supabaseClient || !AppState.currentUser) return;
+  
+  const userId = AppState.currentUser.id;
+  
+  // Batch upsert all data types
+  try {
+    // Todos
+    if (AppState.todos.length > 0) {
+      const todosWithUser = AppState.todos.map(t => ({ ...t, user_id: userId }));
+      await supabaseClient.from('todos').upsert(todosWithUser);
+    }
+    
+    // Habits
+    if (AppState.habits.length > 0) {
+      const habitsWithUser = AppState.habits.map(h => ({ ...h, user_id: userId }));
+      await supabaseClient.from('habits').upsert(habitsWithUser);
+    }
+    
+    // Diaries
+    if (AppState.diaries.length > 0) {
+      const diariesWithUser = AppState.diaries.map(d => ({ ...d, user_id: userId }));
+      await supabaseClient.from('diaries').upsert(diariesWithUser);
+    }
+    
+    // Diet
+    const dietEntries = Object.entries(AppState.diet);
+    if (dietEntries.length > 0) {
+      const dietsWithUser = dietEntries.map(([date, data]) => ({ 
+        ...data, 
+        id: data.id || `${userId}_${date}`,
+        date, 
+        user_id: userId 
+      }));
+      await supabaseClient.from('diet').upsert(dietsWithUser);
+    }
+    
+    // Events
+    if (AppState.events.length > 0) {
+      const eventsWithUser = AppState.events.map(e => ({ ...e, user_id: userId }));
+      await supabaseClient.from('events').upsert(eventsWithUser);
+    }
+    
+    console.log('☁️ Auto-synced to Supabase');
+  } catch(e) {
+    console.warn('Auto-sync failed:', e);
+  }
 }
 
 // Save to Supabase with user_id
