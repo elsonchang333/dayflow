@@ -2,7 +2,7 @@
 const SUPABASE_URL = 'https://xucrjpvmqpcrthlvrnxg.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1Y3JqcHZtcXBjcnRobHZybmd4ZyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzM5OTQyNTQ0LCJleHAiOjIwNTU1MTg1NDR9.sb_publishable_Vz0N1Se112OPbNbrZz7RHg_yPRqe2AG';
 
-let supabase = null;
+let supabaseClient = null;
 let isOnline = false;
 
 const AppState = {
@@ -46,8 +46,8 @@ async function initSupabase() {
       return false; 
     }
     
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { data, error } = await supabase.from('todos').select('count');
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data, error } = await supabaseClient.from('todos').select('count');
     if (error) throw error;
     isOnline = true; 
     console.log('✅ Supabase connected - data will sync to cloud'); 
@@ -65,26 +65,26 @@ async function initSupabase() {
 
 // Sync local data to Supabase
 async function syncToSupabase() {
-  if (!isOnline || !supabase) return;
+  if (!isOnline || !supabaseClient) return;
   
   try {
     console.log('🔄 Syncing local data to Supabase...');
     
     // Sync todos
     for (const todo of AppState.todos) {
-      const { error } = await supabase.from('todos').upsert(todo);
+      const { error } = await supabaseClient.from('todos').upsert(todo);
       if (error) console.warn('Failed to sync todo:', error);
     }
     
     // Sync habits
     for (const habit of AppState.habits) {
-      const { error } = await supabase.from('habits').upsert(habit);
+      const { error } = await supabaseClient.from('habits').upsert(habit);
       if (error) console.warn('Failed to sync habit:', error);
     }
     
     // Sync diaries
     for (const diary of AppState.diaries) {
-      const { error } = await supabase.from('diaries').upsert(diary);
+      const { error } = await supabaseClient.from('diaries').upsert(diary);
       if (error) console.warn('Failed to sync diary:', error);
     }
     
