@@ -40,18 +40,6 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 .overview-count { display: block; font-size: 20px; font-weight: 700; color: #1e293b; }
 .overview-label { font-size: 12px; color: #64748b; }
 
-/* Today Diary */
-.today-diary { background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-.diary-section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1e293b; }
-.today-diary-content { }
-.diary-empty { text-align: center; color: #94a3b8; padding: 40px 20px; }
-.today-diary-item { background: #f8fafc; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; }
-.today-diary-item:hover { background: #f1f5f9; }
-.today-diary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.today-diary-title { font-size: 16px; font-weight: 600; color: #1e293b; }
-.today-diary-mood { font-size: 20px; }
-.today-diary-text { color: #64748b; line-height: 1.6; white-space: pre-wrap; }
-
 /* Review */
 .today-review { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 .review-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1e293b; }

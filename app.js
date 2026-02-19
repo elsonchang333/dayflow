@@ -257,7 +257,7 @@ function initToday() {
   const today = Utils.formatDate(new Date());
   document.getElementById('currentDate').textContent = `${today.month}${today.date}日`;
   document.getElementById('currentWeekday').textContent = today.weekday;
-  renderOverview(); renderReview(); renderTodayDiary();
+  renderOverview(); renderReview();
 }
 
 function renderOverview() {
@@ -322,36 +322,12 @@ function renderReview() {
   
   const currentDiary = AppState.diaries.find(d => d.date === currentDate);
   if (currentDiary) {
-    html += `<div class="review-section"><h4>📖 今日日记</h4><div class="review-diary"><strong>${currentDiary.title}</strong><p>${currentDiary.content?.substring(0,100)||''}</p></div></div>`;
+    html += `<div class="review-section"><h4>📖 今日日记</h4><div class="review-diary"><strong>${currentDiary.title}</strong><p>${currentDiary.content || ''}</p></div></div>`;
   }
   
   container.innerHTML = html || '<div class="review-empty">今天还没有记录任何内容，开始记录吧！</div>';
   
-  // Also render today diary section
-  renderTodayDiary();
-}
-
-// Render today diary in separate section
-function renderTodayDiary() {
-  const container = document.getElementById('todayDiaryContent');
-  if (!container) return;
   
-  const currentDate = Utils.formatDate(AppState.currentDate).full;
-  const diary = AppState.diaries.find(d => d.date === currentDate);
-  
-  if (diary) {
-    container.innerHTML = `
-      <div class="today-diary-item" onclick="viewDiary('${diary.id}')">
-        <div class="today-diary-header">
-          <span class="today-diary-title">${diary.title}</span>
-          <span class="today-diary-mood">${Utils.getMoodEmoji(diary.mood)}</span>
-        </div>
-        <div class="today-diary-text">${diary.content || '无内容'}</div>
-      </div>
-    `;
-  } else {
-    container.innerHTML = '<div class="diary-empty">还没有日记，<button onclick="document.getElementById(\'addDiaryBtn\').click()" style="background:none;border:none;color:#3b82f6;cursor:pointer;text-decoration:underline;">去写日记</button>吧！</div>';
-  }
 }
 
 function showPage(page) {
@@ -619,7 +595,6 @@ function switchToDate(date) {
   // Re-render with new date
   renderOverview();
   renderReview();
-  renderTodayDiary();
 }
 
 function renderDietStats(dates) {
@@ -870,7 +845,7 @@ function deleteDiary() {
     saveData();
     document.getElementById('viewDiaryModal').classList.remove('active');
     if (AppState.currentPage === 'diary') renderDiaryList();
-    renderOverview(); renderReview(); renderTodayDiary();
+    renderOverview(); renderReview();
     alert('日记已删除');
   }
 }
@@ -906,7 +881,7 @@ function saveDiary() {
   document.getElementById('diaryTitle').value = '';
   document.getElementById('diaryContent').value = '';
   if (AppState.currentPage === 'diary') renderDiaryList();
-  renderOverview(); renderReview(); renderTodayDiary();
+  renderOverview(); renderReview();
   alert(AppState.currentDiaryId ? '日记更新成功！' : '日记保存成功！');
 }
 
