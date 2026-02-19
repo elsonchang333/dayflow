@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DayFlow - 每日复盘与效率管理</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">📖</div>
+        <div class="logo-text">
+          <span class="logo-title">DayFlow</span>
+          <span class="logo-subtitle">每日复盘</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="settingsBtn"><i class="fas fa-cog"></i></button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section id="todayPage" class="page active">
+        <div class="today-header">
+          <div class="date-display">
+            <h1 class="date-main" id="currentDate">--月--日</h1>
+            <p class="date-sub" id="currentWeekday">星期-</p>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <button class="quick-btn" id="todoBtn">
+            <div class="quick-icon">📝</div>
+            <span>待办事项</span>
+          </button>
+          <button class="quick-btn" id="dietBtn">
+            <div class="quick-icon">🍽️</div>
+            <span>饮食记录</span>
+          </button>
+          <button class="quick-btn" id="pomodoroBtn">
+            <div class="quick-icon">🍅</div>
+            <span>番茄钟</span>
+          </button>
+          <button class="quick-btn" id="habitBtn">
+            <div class="quick-icon">✅</div>
+            <span>习惯打卡</span>
+          </button>
+        </div>
+
+        <div class="today-overview">
+          <h2 class="overview-title">📊 今日总览</h2>
+          <div class="overview-cards">
+            <div class="overview-card" id="overviewTodos">
+              <div class="overview-icon">📝</div>
+              <div class="overview-info">
+                <span class="overview-count">0/0</span>
+                <span class="overview-label">待办事项</span>
+              </div>
+            </div>
+            <div class="overview-card" id="overviewHabits">
+              <div class="overview-icon">✅</div>
+              <div class="overview-info">
+                <span class="overview-count">0/0</span>
+                <span class="overview-label">习惯打卡</span>
+              </div>
+            </div>
+            <div class="overview-card" id="overviewDiet">
+              <div class="overview-icon">🍽️</div>
+              <div class="overview-info">
+                <span class="overview-count">0</span>
+                <span class="overview-label">卡路里</span>
+              </div>
+            </div>
+            <div class="overview-card" id="overviewEvents">
+              <div class="overview-icon">📅</div>
+              <div class="overview-info">
+                <span class="overview-count">0</span>
+                <span class="overview-label">行程</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="today-review">
+          <h2 class="review-title">📋 今日复盘</h2>
+          <div class="review-content" id="reviewContent">
+            <div class="review-empty">今天还没有记录任何内容，开始记录吧！</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="calendarPage" class="page">
+        <div class="calendar-header">
+          <button class="btn-nav" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+          <h2 class="calendar-title" id="calendarTitle">2026年2月</h2>
+          <button class="btn-nav" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-date-picker">
+          <label>快速选择日期：</label>
+          <input type="date" id="calendarDatePicker">
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="selected-date-events">
+          <div class="selected-date-header">
+            <h3 id="selectedDateTitle">2月19日 行程</h3>
+            <button class="btn-add-small" id="addEventFromCalendar"><i class="fas fa-plus"></i> 添加</button>
+          </div>
+          <div class="event-list-calendar" id="eventListCalendar"></div>
+        </div>
+      </section>
+
+      <section id="diaryPage" class="page">
+        <div class="diary-header">
+          <h2 class="page-title">我的日记</h2>
+          <button class="btn-add" id="addDiaryBtn"><i class="fas fa-plus"></i> 写日记</button>
+        </div>
+        <div class="diary-list" id="diaryList"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-page="today"><i class="fas fa-home"></i><span>今日</span></button>
+      <button class="nav-btn" data-page="calendar"><i class="fas fa-calendar-alt"></i><span>行事历</span></button>
+      <button class="nav-btn" data-page="diary"><i class="fas fa-book"></i><span>日记</span></button>
+    </nav>
+
+    <!-- Modals -->
+    <div class="modal" id="todoModal">
+      <div class="modal-content">
+        <div class="modal-header"><h3>待办事项</h3><button class="btn-close" id="closeTodo"><i class="fas fa-times"></i></button></div>
+        <div class="todo-date-selector"><label>选择日期</label><input type="date" id="todoDate"></div>
+        <div class="todo-input-wrapper"><input type="text" id="todoInput" placeholder="添加新的待办事项..."><button id="addTodoBtn"><i class="fas fa-plus"></i></button></div>
+        <div class="todo-list" id="todoList"></div>
+      </div>
+    </div>
+
+    <div class="modal" id="habitModal">
+      <div class="modal-content">
+        <div class="modal-header"><h3>习惯打卡</h3><button class="btn-close" id="closeHabit"><i class="fas fa-times"></i></button></div>
+        <div class="habit-date-selector"><label>选择日期</label><input type="date" id="habitDate"></div>
+        <div class="habit-input-wrapper">
+          <input type="text" id="habitInput" placeholder="添加新习惯...">
+          <select id="habitIcon"><option value="💧">💧 水</option><option value="🏃">🏃 运动</option><option value="📖">📖 阅读</option><option value="🧘">🧘 冥想</option><option value="💤">💤 早睡</option></select>
+          <button id="addHabitBtn"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="habit-list" id="habitList"></div>
+      </div>
+    </div>
+
+    <div class="modal" id="dietModal">
+      <div class="modal-content">
+        <div class="modal-header"><h3>🍽️ 饮食记录</h3><button class="btn-close" id="closeDiet"><i class="fas fa-times"></i></button></div>
+        <div class="diet-date-selector"><label>选择日期</label><input type="date" id="dietDate"></div>
+        <div class="meal-section"><h4>🌅 早餐</h4><div class="meal-input-wrapper"><input type="text" id="breakfastInput" placeholder="吃了什么？"><input type="number" id="breakfastCal" placeholder="卡路里" min="0"></div></div>
+        <div class="meal-section"><h4>☀️ 午餐</h4><div class="meal-input-wrapper"><input type="text" id="lunchInput" placeholder="吃了什么？"><input type="number" id="lunchCal" placeholder="卡路里" min="0"></div></div>
+        <div class="meal-section"><h4>🌙 晚餐</h4><div class="meal-input-wrapper"><input type="text" id="dinnerInput" placeholder="吃了什么？"><input type="number" id="dinnerCal" placeholder="卡路里" min="0"></div></div>
+        <div class="meal-section"><h4>🍿 加餐</h4><div class="meal-input-wrapper"><input type="text" id="snackInput" placeholder="吃了什么？"><input type="number" id="snackCal" placeholder="卡路里" min="0"></div></div>
+        <div class="diet-summary"><div class="calorie-total"><span>今日总摄入：</span><span id="totalCalories">0</span><span>千卡</span></div></div>
+        <button class="btn-submit" id="saveDiet">保存记录</button>
+      </div>
+    </div>
+
+    <div class="modal" id="pomodoroModal">
+      <div class="modal-content pomodoro-content">
+        <div class="pomodoro-timer">
+          <div class="timer-display"><span id="timerMinutes">25</span>:<span id="timerSeconds">00</span></div>
+        </div>
+        <div class="timer-controls">
+          <button class="timer-btn" id="timerToggle"><i class="fas fa-play"></i> 开始</button>
+          <button class="timer-btn secondary" id="timerReset"><i class="fas fa-redo"></i> 重置</button>
+        </div>
+        <div class="timer-settings">
+          <button class="duration-btn active" data-duration="25">25分钟</button>
+          <button class="duration-btn" data-duration="45">45分钟</button>
+          <button class="duration-btn" data-duration="60">60分钟</button>
+        </div>
+        <button class="btn-close-modal" id="closePomodoro"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+
+    <div class="modal" id="diaryModal">
+      <div class="modal-content diary-modal-content">
+        <div class="modal-header"><h3>✏️ 写日记</h3><button class="btn-close" id="closeDiaryModal"><i class="fas fa-times"></i></button></div>
+        <div class="diary-form">
+          <div class="form-group"><label>日期</label><input type="date" id="diaryDate" required></div>
+          <div class="form-group"><label>标题</label><input type="text" id="diaryTitle" placeholder="今天发生了什么..." required></div>
+          <div class="form-group"><label>内容</label><textarea id="diaryContent" rows="8" placeholder="记录下今天的所思所想..."></textarea></div>
+          <div class="form-group"><label>心情</label><div class="diary-mood-selector"><button type="button" class="diary-mood-btn" data-mood="5">😄 超棒</button><button type="button" class="diary-mood-btn" data-mood="4">😊 不错</button><button type="button" class="diary-mood-btn active" data-mood="3">😐 一般</button><button type="button" class="diary-mood-btn" data-mood="2">😔 不太好</button><button type="button" class="diary-mood-btn" data-mood="1">😫 糟糕</button></div></div>
+          <button class="btn-submit" id="saveDiaryBtn">保存日记</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="viewDiaryModal">
+      <div class="modal-content diary-modal-content">
+        <div class="modal-header"><h3 id="viewDiaryTitle">日记标题</h3><button class="btn-close" id="closeViewDiary"><i class="fas fa-times"></i></button></div>
+        <div class="view-diary-content">
+          <div class="view-diary-meta"><span id="viewDiaryDate"></span><span id="viewDiaryMood"></span></div>
+          <div class="view-diary-text" id="viewDiaryText"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="addEventModal">
+      <div class="modal-content">
+        <div class="modal-header"><h3>📅 添加行程</h3><button class="btn-close" id="closeAddEvent"><i class="fas fa-times"></i></button></div>
+        <div class="add-event-container">
+          <div class="form-group"><label>日期</label><input type="date" id="newEventDate" readonly></div>
+          <div class="form-group"><label>时间</label><input type="time" id="newEventTime"></div>
+          <div class="form-group"><label>事件内容</label><input type="text" id="newEventTitle" placeholder="例如：项目会议"></div>
+          <div class="form-group"><label>类型</label><select id="newEventType"><option value="work">💼 工作</option><option value="personal">🏠 个人</option><option value="meeting">👥 会议</option><option value="reminder">⏰ 提醒</option><option value="other">📌 其他</option></select></div>
+          <button class="btn-submit" id="saveNewEvent">保存行程</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="settingsModal">
+      <div class="modal-content">
+        <div class="modal-header"><h3>设置</h3><button class="btn-close" id="closeSettings"><i class="fas fa-times"></i></button></div>
+        <div class="settings-container">
+          <div class="setting-item"><div class="setting-info"><h4>数据备份</h4><p>导出所有数据为JSON文件</p></div><button class="btn-setting" id="exportData"><i class="fas fa-download"></i> 导出数据</button></div>
+          <div class="setting-item"><div class="setting-info"><h4>数据恢复</h4><p>从JSON文件导入数据</p></div><input type="file" id="importFile" accept=".json" hidden><button class="btn-setting" id="importData"><i class="fas fa-upload"></i> 导入数据</button></div>
+          <div class="setting-item"><div class="setting-info"><h4>清除数据</h4><p>删除所有本地数据（不可恢复）</p></div><button class="btn-setting danger" id="clearData"><i class="fas fa-trash"></i> 清除所有</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
