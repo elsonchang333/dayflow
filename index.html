@@ -121,6 +121,20 @@
           <div class="period-selector">
             <button class="period-btn active" data-period="week">本周</button>
             <button class="period-btn" data-period="month">本月</button>
+            <button class="period-btn" data-period="custom">自选</button>
+          </div>
+        </div>
+        <div class="stats-date-picker" id="statsDatePicker" style="display: none; margin-bottom: 16px; background: white; padding: 12px; border-radius: 12px;">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="flex: 1;">
+              <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">开始日期</label>
+              <input type="date" id="statsStartDate" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">结束日期</label>
+              <input type="date" id="statsEndDate" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            </div>
+            <button id="applyStatsDate" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-top: 16px;">应用</button>
           </div>
         </div>
         <div class="stats-content" id="statsContent">

@@ -350,12 +350,51 @@ function getWeekDates() {
   return dates;
 }
 
+function getMonthDates() {
+  const dates = [];
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    dates.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+  }
+  return dates;
+}
+
+function getCustomDates() {
+  const startDate = document.getElementById('statsStartDate')?.value;
+  const endDate = document.getElementById('statsEndDate')?.value;
+  
+  if (!startDate || !endDate) return getWeekDates();
+  
+  const dates = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(Utils.formatDate(d).full);
+  }
+  return dates;
+}
+
 function renderStats() {
-  const weekDates = getWeekDates();
-  renderHabitStats(weekDates);
-  renderDietStats(weekDates);
-  renderTodoStats(weekDates);
-  renderMoodStats();
+  const activePeriod = document.querySelector('.period-btn.active')?.dataset.period || 'week';
+  let dates;
+  
+  if (activePeriod === 'week') {
+    dates = getWeekDates();
+  } else if (activePeriod === 'month') {
+    dates = getMonthDates();
+  } else {
+    dates = getCustomDates();
+  }
+  
+  renderHabitStats(dates);
+  renderDietStats(dates);
+  renderTodoStats(dates);
+  renderMoodStats(dates);
 }
 
 function renderHabitStats(dates) {
@@ -444,14 +483,25 @@ function renderTodoStats(dates) {
   });
 }
 
-function renderMoodStats() {
+function renderMoodStats(dates) {
   const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   let totalMood = 0, count = 0;
   
-  AppState.diaries.forEach(d => { if (d.mood) { moodCounts[d.mood]++; totalMood += d.mood; count++; } });
+  // Filter diaries by date range if provided
+  const filteredDiaries = dates 
+    ? AppState.diaries.filter(d => dates.includes(d.date))
+    : AppState.diaries;
+  
+  filteredDiaries.forEach(d => { 
+    if (d.mood) { 
+      moodCounts[d.mood]++; 
+      totalMood += d.mood; 
+      count++; 
+    } 
+  });
   
   document.getElementById('avgMood').textContent = Utils.getMoodEmoji(count > 0 ? Math.round(totalMood / count) : 3);
-  document.getElementById('diaryCount').textContent = AppState.diaries.length + ' 篇';
+  document.getElementById('diaryCount').textContent = filteredDiaries.length + ' 篇';
   
   const ctx = document.getElementById('moodChart');
   if (!ctx) return;
@@ -799,8 +849,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    
+    const period = btn.dataset.period;
+    const datePicker = document.getElementById('statsDatePicker');
+    
+    if (period === 'custom') {
+      datePicker.style.display = 'block';
+      // Set default dates (last 7 days)
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 6);
+      document.getElementById('statsEndDate').value = Utils.formatDate(end).full;
+      document.getElementById('statsStartDate').value = Utils.formatDate(start).full;
+    } else {
+      datePicker.style.display = 'none';
+    }
+    
     renderStats();
   }));
+  
+  // Apply custom date range
+  document.getElementById('applyStatsDate')?.addEventListener('click', () => {
+    renderStats();
+  });
   
   // Auth event listeners
   document.getElementById('loginTab')?.addEventListener('click', switchToLogin);
