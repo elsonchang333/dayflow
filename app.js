@@ -150,35 +150,40 @@ async function syncLocalDataToSupabase() {
     
     // Sync todos with user_id
     for (const todo of AppState.todos) {
-      const todoWithUser = { ...todo, user_id: userId };
+      const { user_id, ...rest } = todo;
+      const todoWithUser = { ...rest, user_id: userId };
       const { error } = await supabaseClient.from('todos').upsert(todoWithUser);
       if (error) console.warn('Failed to sync todo:', error);
     }
     
     // Sync habits
     for (const habit of AppState.habits) {
-      const habitWithUser = { ...habit, user_id: userId };
+      const { user_id, ...rest } = habit;
+      const habitWithUser = { ...rest, user_id: userId };
       const { error } = await supabaseClient.from('habits').upsert(habitWithUser);
       if (error) console.warn('Failed to sync habit:', error);
     }
     
     // Sync diaries
     for (const diary of AppState.diaries) {
-      const diaryWithUser = { ...diary, user_id: userId };
+      const { user_id, ...rest } = diary;
+      const diaryWithUser = { ...rest, user_id: userId };
       const { error } = await supabaseClient.from('diaries').upsert(diaryWithUser);
       if (error) console.warn('Failed to sync diary:', error);
     }
     
     // Sync diets (new array format)
     for (const diet of AppState.diets) {
-      const dietWithUser = { ...diet, user_id: userId };
+      const { user_id, ...rest } = diet;
+      const dietWithUser = { ...rest, user_id: userId };
       const { error } = await supabaseClient.from('diets').upsert(dietWithUser);
       if (error) console.warn('Failed to sync diet:', error);
     }
     
     // Sync events
     for (const event of AppState.events) {
-      const eventWithUser = { ...event, user_id: userId };
+      const { user_id, ...rest } = event;
+      const eventWithUser = { ...rest, user_id: userId };
       const { error } = await supabaseClient.from('events').upsert(eventWithUser);
       if (error) console.warn('Failed to sync event:', error);
     }
@@ -380,7 +385,10 @@ async function autoSyncToSupabase() {
     
     // Todos
     if (AppState.todos.length > 0) {
-      const todosWithUser = AppState.todos.map(t => ({ ...t, user_id: userId }));
+      const todosWithUser = AppState.todos.map(t => {
+        const { user_id, ...rest } = t;
+        return { ...rest, user_id: userId };
+      });
       const { error } = await supabaseClient.from('todos').upsert(todosWithUser);
       if (error) console.warn('❌ Failed to sync todos:', error);
       else console.log('✅ Synced', AppState.todos.length, 'todos');
@@ -388,7 +396,10 @@ async function autoSyncToSupabase() {
     
     // Habits
     if (AppState.habits.length > 0) {
-      const habitsWithUser = AppState.habits.map(h => ({ ...h, user_id: userId }));
+      const habitsWithUser = AppState.habits.map(h => {
+        const { user_id, ...rest } = h;
+        return { ...rest, user_id: userId };
+      });
       const { error } = await supabaseClient.from('habits').upsert(habitsWithUser);
       if (error) console.warn('❌ Failed to sync habits:', error);
       else console.log('✅ Synced', AppState.habits.length, 'habits');
@@ -396,7 +407,10 @@ async function autoSyncToSupabase() {
     
     // Diaries
     if (AppState.diaries.length > 0) {
-      const diariesWithUser = AppState.diaries.map(d => ({ ...d, user_id: userId }));
+      const diariesWithUser = AppState.diaries.map(d => {
+        const { user_id, ...rest } = d;
+        return { ...rest, user_id: userId };
+      });
       const { error } = await supabaseClient.from('diaries').upsert(diariesWithUser);
       if (error) console.warn('❌ Failed to sync diaries:', error);
       else console.log('✅ Synced', AppState.diaries.length, 'diaries');
@@ -404,7 +418,10 @@ async function autoSyncToSupabase() {
     
     // Diets (new array format)
     if (AppState.diets.length > 0) {
-      const dietsWithUser = AppState.diets.map(d => ({ ...d, user_id: userId }));
+      const dietsWithUser = AppState.diets.map(d => {
+        const { user_id, ...rest } = d; // Remove existing user_id to avoid duplication
+        return { ...rest, user_id: userId };
+      });
       const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
       if (error) {
         console.warn('❌ Failed to sync diets:', error);
@@ -415,7 +432,10 @@ async function autoSyncToSupabase() {
     
     // Events
     if (AppState.events.length > 0) {
-      const eventsWithUser = AppState.events.map(e => ({ ...e, user_id: userId }));
+      const eventsWithUser = AppState.events.map(e => {
+        const { user_id, ...rest } = e;
+        return { ...rest, user_id: userId };
+      });
       const { error } = await supabaseClient.from('events').upsert(eventsWithUser);
       if (error) console.warn('❌ Failed to sync events:', error);
       else console.log('✅ Synced', AppState.events.length, 'events');
