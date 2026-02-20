@@ -1157,7 +1157,12 @@ function resetTimer() { clearInterval(timerInterval); running = false; timeLeft 
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
-  await initSupabase(); loadData(); initToday();
+  // CRITICAL: Load local data FIRST for fast display
+  loadData();
+  initToday();
+  
+  // Then init Supabase - if logged in, will download from cloud and overwrite local
+  await initSupabase();
   
   // Navigation
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
