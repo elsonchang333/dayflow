@@ -1258,10 +1258,31 @@ function importData(e) {
   reader.readAsText(file); e.target.value = '';
 }
 
-function clearData() {
+async function clearData() {
   if (confirm('警告：这将删除所有数据！') && confirm('再次确认：无法恢复！')) {
+    // Clear cloud data first
+    if (AppState.currentUser && supabaseClient) {
+      const userId = AppState.currentUser.id;
+      console.log('🗑️ Clearing cloud data...');
+      await supabaseClient.from('todos').delete().eq('user_id', userId);
+      await supabaseClient.from('habits').delete().eq('user_id', userId);
+      await supabaseClient.from('diaries').delete().eq('user_id', userId);
+      await supabaseClient.from('diets').delete().eq('user_id', userId);
+      await supabaseClient.from('events').delete().eq('user_id', userId);
+      console.log('✅ Cloud data cleared');
+    }
+    
+    // Clear local data
+    localStorage.removeItem('dayflow_todos');
+    localStorage.removeItem('dayflow_habits');
+    localStorage.removeItem('dayflow_diets');
+    localStorage.removeItem('dayflow_diet');
+    localStorage.removeItem('dayflow_events');
+    localStorage.removeItem('dayflow_diaries');
+    
     AppState.todos = []; AppState.habits = []; AppState.diets = []; AppState.events = []; AppState.diaries = [];
-    saveData(); location.reload();
+    alert('✅ 所有数据已清除！请刷新页面。');
+    location.reload();
   }
 }
 
@@ -1376,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('exportData')?.addEventListener('click', exportData);
   document.getElementById('importData')?.addEventListener('click', () => document.getElementById('importFile').click());
   document.getElementById('importFile')?.addEventListener('change', importData);
-  document.getElementById('clearData')?.addEventListener('click', clearData);
+  document.getElementById('clearData')?.addEventListener('click', () => clearData());
   
   // Diary mood
   document.querySelectorAll('.diary-mood-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.diary-mood-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); AppState.selectedDiaryMood = parseInt(btn.dataset.mood); }));
