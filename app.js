@@ -91,7 +91,10 @@ function showPage(page) {
     
     // Refresh page-specific content
     if (page === 'diary') renderDiaryList();
-    if (page === 'stats') updateStats();
+    if (page === 'stats') {
+        updateStats();
+        initStatsDate();
+    }
     if (page === 'pomodoro') updatePomodoroHistory();
 }
 
@@ -587,8 +590,75 @@ function updatePomodoroHistory() {
     document.getElementById('pomodoroHistory').textContent = `${todayCount} 次`;
 }
 
+// ==================== Stats Date Selector ====================
+let statsSelectedDate = new Date();
+
+function initStatsDate() {
+    const dateInput = document.getElementById('statsDateInput');
+    if (dateInput) {
+        dateInput.value = formatDateForInput(statsSelectedDate);
+        updateStatsDaySummary();
+    }
+}
+
+function formatDateForInput(date) {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function changeStatsDate(days) {
+    statsSelectedDate.setDate(statsSelectedDate.getDate() + days);
+    document.getElementById('statsDateInput').value = formatDateForInput(statsSelectedDate);
+    updateStatsDaySummary();
+}
+
+function onStatsDateChange() {
+    const dateInput = document.getElementById('statsDateInput');
+    if (dateInput.value) {
+        statsSelectedDate = new Date(dateInput.value);
+        updateStatsDaySummary();
+    }
+}
+
+function goToStatsToday() {
+    statsSelectedDate = new Date();
+    document.getElementById('statsDateInput').value = formatDateForInput(statsSelectedDate);
+    updateStatsDaySummary();
+}
+
+function updateStatsDaySummary() {
+    const dateStr = formatDate(statsSelectedDate).full;
+    const isToday = dateStr === formatDate(new Date()).full;
+    
+    // Update label
+    const dateLabel = isToday ? '今日' : `${formatDate(statsSelectedDate).month}${formatDate(statsSelectedDate).date}日`;
+    document.getElementById('statsSelectedDate').textContent = dateLabel;
+    
+    // Get data for selected date
+    const dayTodos = todos.filter(t => t.date === dateStr);
+    const completedTodos = dayTodos.filter(t => t.completed).length;
+    document.getElementById('statsDayTodos').textContent = `${completedTodos}/${dayTodos.length}`;
+    
+    const checkedHabits = habits.filter(h => h.checkIns && h.checkIns.includes(dateStr));
+    document.getElementById('statsDayHabits').textContent = `${checkedHabits.length}/${habits.length}`;
+    
+    const diet = diets.find(d => d.date === dateStr);
+    const calories = diet ? 
+        (diet.breakfastCal || 0) + (diet.lunchCal || 0) + 
+        (diet.dinnerCal || 0) + (diet.snackCal || 0) : 0;
+    document.getElementById('statsDayCalories').textContent = calories;
+    
+    const diary = diaries.find(d => d.date === dateStr);
+    document.getElementById('statsDayDiary').textContent = diary ? '✓' : '-';
+    
+    // Also update currentDate for editing
+    currentDate = new Date(statsSelectedDate);
+}
+
 // ==================== Stats ====================
 function updateStats() {
+    // Initialize stats date picker
+    initStatsDate();
     // Todo rate
     const totalTodos = todos.length;
     const completedTodos = todos.filter(t => t.completed).length;

@@ -1093,7 +1093,52 @@
             <div class="date-main">📊 数据统计</div>
         </div>
         
-        <div style="padding: 20px;">
+        <!-- Date Selector -->
+        <div class="section" style="margin-top: 16px;">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button class="settings-btn" onclick="changeStatsDate(-1)" style="padding: 10px 14px;">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div style="flex: 1;">
+                    <input type="date" id="statsDateInput" class="input-field" style="text-align: center; font-weight: 600;" onchange="onStatsDateChange()">
+                </div>
+                <button class="settings-btn" onclick="changeStatsDate(1)" style="padding: 10px 14px;">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <button class="settings-btn success" onclick="goToStatsToday()" style="width: 100%; margin-top: 12px;">
+                <i class="fas fa-calendar-day"></i> 回到今天
+            </button>
+        </div>
+        
+        <!-- Selected Date Summary -->
+        <div class="section">
+            <div class="section-title">📅 <span id="statsSelectedDate">今日</span> 概览</div>
+            <div class="overview-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <div class="overview-card" onclick="showPage('today')" style="cursor: pointer;">
+                    <div class="overview-icon">📝</div>
+                    <div class="overview-count" id="statsDayTodos">0/0</div>
+                    <div class="overview-label">待办</div>
+                </div>
+                <div class="overview-card" onclick="showPage('today')" style="cursor: pointer;">
+                    <div class="overview-icon">✅</div>
+                    <div class="overview-count" id="statsDayHabits">0/0</div>
+                    <div class="overview-label">习惯</div>
+                </div>
+                <div class="overview-card" onclick="showPage('today')" style="cursor: pointer;">
+                    <div class="overview-icon">🍽️</div>
+                    <div class="overview-count" id="statsDayCalories">0</div>
+                    <div class="overview-label">卡路里</div>
+                </div>
+                <div class="overview-card" onclick="showPage('diary')" style="cursor: pointer;">
+                    <div class="overview-icon">📖</div>
+                    <div class="overview-count" id="statsDayDiary">-</div>
+                    <div class="overview-label">日记</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="padding: 20px; padding-top: 0;">
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="statTodoRate">0%</div>
