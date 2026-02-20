@@ -425,6 +425,11 @@ async function autoSyncToSupabase() {
     }
     
     // Diets (new array format)
+    // Ensure AppState.diets is an array
+    if (!Array.isArray(AppState.diets)) {
+      console.warn('⚠️ AppState.diets is not an array, converting...', AppState.diets);
+      AppState.diets = [];
+    }
     if (AppState.diets.length > 0) {
       const dietsWithUser = AppState.diets.map(d => {
         // Build object manually to avoid any spread issues
@@ -444,6 +449,7 @@ async function autoSyncToSupabase() {
         };
         return cleanDiet;
       });
+      console.log('DEBUG: Sending diets to Supabase:', JSON.stringify(dietsWithUser, null, 2));
       const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
       if (error) {
         console.warn('❌ Failed to sync diets:', error);
