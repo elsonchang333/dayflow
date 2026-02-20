@@ -418,19 +418,28 @@ async function autoSyncToSupabase() {
     
     // Diets (new array format)
     if (AppState.diets.length > 0) {
-      console.log('DEBUG: userId =', userId, typeof userId);
-      console.log('DEBUG: first diet =', AppState.diets[0]);
       const dietsWithUser = AppState.diets.map(d => {
-        const { user_id, ...rest } = d;
-        console.log('DEBUG: rest =', rest);
-        console.log('DEBUG: setting user_id to', userId);
-        return { ...rest, user_id: userId };
+        // Build object manually to avoid any spread issues
+        const cleanDiet = {
+          id: d.id,
+          date: d.date,
+          breakfast: d.breakfast,
+          breakfastCal: d.breakfastCal,
+          lunch: d.lunch,
+          lunchCal: d.lunchCal,
+          dinner: d.dinner,
+          dinnerCal: d.dinnerCal,
+          snack: d.snack,
+          snackCal: d.snackCal,
+          created_at: d.created_at,
+          user_id: userId  // Set user_id explicitly
+        };
+        return cleanDiet;
       });
-      console.log('DEBUG: final dietsWithUser =', dietsWithUser);
       const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
       if (error) {
         console.warn('❌ Failed to sync diets:', error);
-        alert('饮食同步失败: ' + error.message + '\n\n可能原因:\n1. diets 表不存在\n2. RLS 权限未设置\n3. 网络问题');
+        alert('饮食同步失败: ' + error.message);
       }
       else console.log('✅ Synced', AppState.diets.length, 'diets');
     }
