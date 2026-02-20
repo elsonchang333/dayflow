@@ -292,6 +292,12 @@ async function syncWithCloud() {
 }
 
 async function uploadToCloud(userId) {
+  console.log('📤 准备上传本地数据...');
+  console.log('  - 本地 diets:', AppState.diets.length, '条');
+  if (AppState.diets.length > 0) {
+    console.log('  - 第一条:', JSON.stringify(AppState.diets[0], null, 2));
+  }
+  
   // 上传所有数据（带时间戳）
   const promises = [];
   
@@ -306,9 +312,15 @@ async function uploadToCloud(userId) {
     ));
   }
   if (AppState.diets.length > 0) {
-    promises.push(supabaseClient.from('diets').upsert(
+    console.log('📤 正在上传 diets...');
+    const result = await supabaseClient.from('diets').upsert(
       AppState.diets.map(d => ({ ...d, user_id: userId }))
-    ));
+    );
+    if (result.error) {
+      console.error('❌ 上传 diets 失败:', result.error);
+    } else {
+      console.log('✅ 上传 diets 成功');
+    }
   }
   if (AppState.events.length > 0) {
     promises.push(supabaseClient.from('events').upsert(
@@ -326,6 +338,8 @@ async function uploadToCloud(userId) {
 }
 
 async function downloadFromCloud(userId) {
+  console.log('🔍 正在查询云端数据，用户ID:', userId);
+  
   const [todosRes, habitsRes, dietsRes, eventsRes, diariesRes] = await Promise.all([
     supabaseClient.from('todos').select('*').eq('user_id', userId),
     supabaseClient.from('habits').select('*').eq('user_id', userId),
@@ -333,6 +347,18 @@ async function downloadFromCloud(userId) {
     supabaseClient.from('events').select('*').eq('user_id', userId),
     supabaseClient.from('diaries').select('*').eq('user_id', userId)
   ]);
+  
+  // DEBUG: 显示云端返回的数据
+  console.log('📊 云端数据查询结果:');
+  console.log('  - todos:', todosRes.data?.length || 0, '条', todosRes.error ? '错误:'+todosRes.error.message : '');
+  console.log('  - habits:', habitsRes.data?.length || 0, '条', habitsRes.error ? '错误:'+habitsRes.error.message : '');
+  console.log('  - diets:', dietsRes.data?.length || 0, '条', dietsRes.error ? '错误:'+dietsRes.error.message : '');
+  console.log('  - events:', eventsRes.data?.length || 0, '条', eventsRes.error ? '错误:'+eventsRes.error.message : '');
+  console.log('  - diaries:', diariesRes.data?.length || 0, '条', diariesRes.error ? '错误:'+diariesRes.error.message : '');
+  
+  if (dietsRes.data && dietsRes.data.length > 0) {
+    console.log('📄 云端第一条饮食记录:', JSON.stringify(dietsRes.data[0], null, 2));
+  }
   
   return {
     todos: todosRes.data || [],
