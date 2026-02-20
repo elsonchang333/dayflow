@@ -1513,14 +1513,73 @@ function toggleTimer() {
 }
 function resetTimer() { clearInterval(timerInterval); running = false; timeLeft = duration*60; updateTimer(); document.getElementById('timerToggle').innerHTML = '<i class="fas fa-play"></i> 开始'; }
 
+// Global error handler
+window.addEventListener('error', (e) => {
+  console.error('❌ Global error:', e.message, e.filename, e.lineno);
+  alert('JS错误: ' + e.message + ' 在行 ' + e.lineno);
+});
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load local cache first (for fast display)
-  loadData();
-  initToday();
+  console.log('🚀 DOM Content Loaded - Initializing...');
   
-  // Then init Supabase - will download from cloud if logged in
-  await initSupabase();
+  // CRITICAL: Setup all button bindings FIRST (before any async operations)
+  // This ensures buttons work even if cloud sync fails
+  console.log('🔘 Setting up button bindings...');
+  
+  // Navigation
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
+  
+  // Quick actions - with debug
+  const todoBtn = document.getElementById('todoBtn');
+  const dietBtn = document.getElementById('dietBtn');
+  const habitBtn = document.getElementById('habitBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
+  
+  console.log('Found buttons:', { todoBtn: !!todoBtn, dietBtn: !!dietBtn, habitBtn: !!habitBtn, settingsBtn: !!settingsBtn });
+  
+  if (todoBtn) todoBtn.addEventListener('click', () => { 
+    document.getElementById('todoModal').classList.add('active'); 
+    document.getElementById('todoDate').value = Utils.formatDate(AppState.currentDate).full; 
+    renderTodos(); 
+  });
+  
+  if (habitBtn) habitBtn.addEventListener('click', () => { 
+    document.getElementById('habitModal').classList.add('active'); 
+    document.getElementById('habitDate').value = Utils.formatDate(AppState.currentDate).full; 
+    renderHabits(); 
+  });
+  
+  if (dietBtn) dietBtn.addEventListener('click', () => { 
+    console.log('🍽️ Diet button clicked');
+    document.getElementById('dietModal').classList.add('active'); 
+    document.getElementById('dietDate').value = Utils.formatDate(AppState.currentDate).full; 
+    loadDiet(); 
+  });
+  
+  document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
+  
+  // Settings
+  if (settingsBtn) settingsBtn.addEventListener('click', () => {
+    console.log('⚙️ Settings button clicked');
+    document.getElementById('settingsModal').classList.add('active');
+  });
+  document.getElementById('closeSettings')?.addEventListener('click', () => document.getElementById('settingsModal').classList.remove('active'));
+  
+  console.log('✅ Button bindings complete');
+  
+  try {
+    // Load local cache first (for fast display)
+    loadData();
+    initToday();
+    
+    // Then init Supabase - will download from cloud if logged in
+    await initSupabase();
+    
+    console.log('✅ Initialization complete');
+  } catch(e) {
+    console.error('❌ Initialization failed:', e);
+  }
   
   // Navigation
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
@@ -1562,24 +1621,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
-  // Quick actions
-  document.getElementById('todoBtn')?.addEventListener('click', () => { 
-    document.getElementById('todoModal').classList.add('active'); 
-    document.getElementById('todoDate').value = Utils.formatDate(AppState.currentDate).full; 
-    renderTodos(); 
-  });
-  document.getElementById('habitBtn')?.addEventListener('click', () => { 
-    document.getElementById('habitModal').classList.add('active'); 
-    document.getElementById('habitDate').value = Utils.formatDate(AppState.currentDate).full; 
-    renderHabits(); 
-  });
-  document.getElementById('dietBtn')?.addEventListener('click', () => { 
-    document.getElementById('dietModal').classList.add('active'); 
-    document.getElementById('dietDate').value = Utils.formatDate(AppState.currentDate).full; 
-    loadDiet(); 
-  });
-  document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
-  
   // Close modals
   document.getElementById('closeTodo')?.addEventListener('click', () => document.getElementById('todoModal').classList.remove('active'));
   document.getElementById('closeHabit')?.addEventListener('click', () => document.getElementById('habitModal').classList.remove('active'));
@@ -1590,7 +1631,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('editDiaryBtn')?.addEventListener('click', editDiary);
   document.getElementById('deleteDiaryBtn')?.addEventListener('click', deleteDiary);
   document.getElementById('closeAddEvent')?.addEventListener('click', () => document.getElementById('addEventModal').classList.remove('active'));
-  document.getElementById('closeSettings')?.addEventListener('click', () => document.getElementById('settingsModal').classList.remove('active'));
   
   // Actions
   document.getElementById('addTodoBtn')?.addEventListener('click', () => { addTodo(document.getElementById('todoInput').value); document.getElementById('todoInput').value = ''; });
