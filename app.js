@@ -255,7 +255,10 @@ async function loadUserData() {
     
     // Load diets (new array format)
     const { data: diets, error: dietsError } = await supabaseClient.from('diets').select('*').eq('user_id', userId);
-    if (dietsError) console.warn('❌ Failed to load diets:', dietsError);
+    if (dietsError) {
+      console.warn('❌ Failed to load diets:', dietsError);
+      alert('饮食加载失败: ' + dietsError.message + '\n\n可能原因:\n1. diets 表不存在\n2. RLS 权限未设置');
+    }
     else if (diets) {
       AppState.diets = diets;
       console.log('✅ Loaded', diets.length, 'diets');
@@ -403,7 +406,10 @@ async function autoSyncToSupabase() {
     if (AppState.diets.length > 0) {
       const dietsWithUser = AppState.diets.map(d => ({ ...d, user_id: userId }));
       const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
-      if (error) console.warn('❌ Failed to sync diets:', error);
+      if (error) {
+        console.warn('❌ Failed to sync diets:', error);
+        alert('饮食同步失败: ' + error.message + '\n\n可能原因:\n1. diets 表不存在\n2. RLS 权限未设置\n3. 网络问题');
+      }
       else console.log('✅ Synced', AppState.diets.length, 'diets');
     }
     
