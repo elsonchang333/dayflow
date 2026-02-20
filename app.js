@@ -265,7 +265,15 @@ async function loadUserData() {
       alert('饮食加载失败: ' + dietsError.message + '\n\n可能原因:\n1. diets 表不存在\n2. RLS 权限未设置');
     }
     else if (diets) {
-      AppState.diets = diets;
+      console.log('DEBUG: Loaded diets from cloud:', diets);
+      if (diets.length > 0) {
+        console.log('DEBUG: First diet user_id:', diets[0].user_id, typeof diets[0].user_id);
+      }
+      // Clean up user_id to ensure it's a string, not an object
+      AppState.diets = diets.map(d => ({
+        ...d,
+        user_id: typeof d.user_id === 'object' ? d.user_id.user_id : d.user_id
+      }));
       console.log('✅ Loaded', diets.length, 'diets');
     }
     
