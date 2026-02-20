@@ -666,6 +666,215 @@
             border: none;
             z-index: 100;
         }
+        
+        /* Pomodoro Timer */
+        .pomodoro-container {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .pomodoro-time {
+            font-size: 72px;
+            font-weight: 800;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+            margin: 30px 0;
+        }
+        
+        .pomodoro-controls {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 30px;
+        }
+        
+        .pomodoro-btn {
+            padding: 16px 32px;
+            border-radius: 16px;
+            border: none;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .pomodoro-btn.primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        
+        .pomodoro-btn.secondary {
+            background: var(--bg);
+            color: var(--text);
+        }
+        
+        .pomodoro-status {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-top: 20px;
+        }
+        
+        .pomodoro-progress {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .pomodoro-progress svg {
+            transform: rotate(-90deg);
+        }
+        
+        .pomodoro-progress-circle {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 8;
+        }
+        
+        .pomodoro-progress-bar {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s linear;
+        }
+        
+        /* Settings */
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .settings-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .settings-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .settings-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .settings-btn.danger {
+            background: var(--danger);
+        }
+        
+        .settings-btn.success {
+            background: var(--success);
+        }
+        
+        /* Toggle Switch */
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: var(--border);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle.active {
+            background: var(--primary);
+        }
+        
+        .toggle-knob {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle.active .toggle-knob {
+            transform: translateX(22px);
+        }
+        
+        /* Dark Mode */
+        body.dark-mode {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        body.dark-mode .header {
+            background: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%);
+        }
+        
+        body.dark-mode .quick-btn,
+        body.dark-mode .overview,
+        body.dark-mode .section,
+        body.dark-mode .stat-card,
+        body.dark-mode .diary-card {
+            background: var(--card);
+        }
+        
+        body.dark-mode .input-field,
+        body.dark-mode .add-input {
+            background: #334155;
+            border-color: #475569;
+            color: var(--text);
+        }
+        
+        body.dark-mode .modal-content {
+            background: var(--card);
+        }
+        
+        body.dark-mode .bottom-nav {
+            background: var(--card);
+        }
+        
+        /* Notification Permission Banner */
+        .notification-banner {
+            background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 16px;
+            margin: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .notification-banner-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .notification-banner-btn {
+            background: white;
+            color: #f59e0b;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -742,6 +951,142 @@
         </div>
     </div>
     
+    <!-- POMODORO PAGE -->
+    <div id="pomodoroPage" class="page" style="display:none;">
+        <div class="header">
+            <div class="date-main">🍅 番茄钟</div>
+            <div class="date-sub">专注工作，高效产出</div>
+        </div>
+        
+        <div class="pomodoro-container">
+            <div class="pomodoro-progress">
+                <svg width="200" height="200">
+                    <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#ec4899" />
+                        </linearGradient>
+                    </defs>
+                    <circle class="pomodoro-progress-circle" cx="100" cy="100" r="90"/>
+                    <circle class="pomodoro-progress-bar" cx="100" cy="100" r="90" 
+                            stroke-dasharray="565.48" stroke-dashoffset="0" id="progressCircle"/>
+                </svg>
+            </div>
+            
+            <div class="pomodoro-time" id="pomodoroTime">25:00</div>
+            
+            <div class="pomodoro-status" id="pomodoroStatus">准备开始专注</div>
+            
+            <div class="pomodoro-controls">
+                <button class="pomodoro-btn primary" id="pomodoroStartBtn" onclick="startPomodoro()">
+                    <i class="fas fa-play"></i> 开始
+                </button>
+                <button class="pomodoro-btn secondary" id="pomodoroPauseBtn" onclick="pausePomodoro()" style="display:none;">
+                    <i class="fas fa-pause"></i> 暂停
+                </button>
+                <button class="pomodoro-btn secondary" onclick="resetPomodoro()">
+                    <i class="fas fa-redo"></i> 重置
+                </button>
+            </div>
+            
+            <div style="margin-top: 40px; padding: 20px; background: var(--bg); border-radius: 16px;">
+                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;">
+                    <i class="fas fa-history"></i> 今日专注记录
+                </div>
+                <div id="pomodoroHistory" style="font-size: 24px; font-weight: 700; color: var(--primary);">
+                    0 次
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="settingsPage" class="page" style="display:none;">
+        <div class="header">
+            <div class="date-main">⚙️ 设置</div>
+        </div>
+        
+        <div class="section" style="margin-top: 16px;">
+            <div class="section-title">🎨 外观</div>
+            
+            <div class="settings-item">
+                <div>
+                    <div class="settings-label">深色模式</div>
+                    <div class="settings-desc">切换暗色主题，保护眼睛</div>
+                </div>
+                <div class="toggle" id="darkModeToggle" onclick="toggleDarkMode()">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">🔔 通知</div>
+            
+            <div class="settings-item">
+                <div>
+                    <div class="settings-label">启用提醒</div>
+                    <div class="settings-desc">习惯打卡和待办提醒</div>
+                </div>
+                <div class="toggle" id="notificationToggle" onclick="toggleNotifications()">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+            
+            <div id="notificationBanner" style="display:none;">
+                <div class="notification-banner">
+                    <span class="notification-banner-text">需要浏览器通知权限</span>
+                    <button class="notification-banner-btn" onclick="requestNotificationPermission()">开启</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">💾 数据管理</div>
+            
+            <div class="settings-item">
+                <div>
+                    <div class="settings-label">导出数据</div>
+                    <div class="settings-desc">备份所有数据到 JSON 文件</div>
+                </div>
+                <button class="settings-btn success" onclick="exportData()">
+                    <i class="fas fa-download"></i> 导出
+                </button>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div class="settings-label">导入数据</div>
+                    <div class="settings-desc">从 JSON 文件恢复数据</div>
+                </div>
+                <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+                <button class="settings-btn" onclick="document.getElementById('importFile').click()">
+                    <i class="fas fa-upload"></i> 导入
+                </button>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div class="settings-label">清除所有数据</div>
+                    <div class="settings-desc">⚠️ 此操作不可恢复</div>
+                </div>
+                <button class="settings-btn danger" onclick="clearAllData()">
+                    <i class="fas fa-trash"></i> 清除
+                </button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">📱 关于</div>
+            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                <div style="font-size: 48px; margin-bottom: 16px;">🌊</div>
+                <div style="font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px;">DayFlow</div>
+                <div style="font-size: 14px;">版本 2.0</div>
+                <div style="font-size: 13px; margin-top: 8px;">每日效率管理</div>
+            </div>
+        </div>
+    </div>
+
     <!-- STATS PAGE -->
     <div id="statsPage" class="page" style="display:none;">
         <div class="header">
@@ -912,17 +1257,25 @@
     
     <!-- Bottom Nav -->
     <div class="bottom-nav">
-        <button class="nav-btn active" onclick="showPage('today')">
+        <button class="nav-btn active" onclick="showPage('today')" data-page="today">
             <div class="nav-icon"><i class="fas fa-home"></i></div>
             <div class="nav-text">今日</div>
         </button>
-        <button class="nav-btn" onclick="showPage('stats')">
+        <button class="nav-btn" onclick="showPage('pomodoro')" data-page="pomodoro">
+            <div class="nav-icon"><i class="fas fa-clock"></i></div>
+            <div class="nav-text">番茄</div>
+        </button>
+        <button class="nav-btn" onclick="showPage('stats')" data-page="stats">
             <div class="nav-icon"><i class="fas fa-chart-pie"></i></div>
             <div class="nav-text">统计</div>
         </button>
-        <button class="nav-btn" onclick="showPage('diary')">
+        <button class="nav-btn" onclick="showPage('diary')" data-page="diary">
             <div class="nav-icon"><i class="fas fa-book"></i></div>
             <div class="nav-text">日记</div>
+        </button>
+        <button class="nav-btn" onclick="showPage('settings')" data-page="settings">
+            <div class="nav-icon"><i class="fas fa-cog"></i></div>
+            <div class="nav-text">设置</div>
         </button>
     </div>
     
