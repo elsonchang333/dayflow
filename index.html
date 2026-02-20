@@ -1,438 +1,593 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DayFlow - 每日复盘与效率管理</title>
-  <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DayFlow - 每日效率管理</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+        
+        /* Header */
+        .header {
+            background: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .date-main {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .date-sub {
+            font-size: 16px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            justify-content: space-around;
+            padding: 16px;
+            gap: 12px;
+        }
+        
+        .quick-btn {
+            background: white;
+            border: none;
+            border-radius: 16px;
+            padding: 16px 8px;
+            text-align: center;
+            flex: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        
+        .quick-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .quick-text {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        /* Overview */
+        .overview {
+            background: white;
+            margin: 16px;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .overview-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1e293b;
+        }
+        
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        
+        .overview-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px 8px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .overview-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .overview-count {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        
+        .overview-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        
+        /* Sections */
+        .section {
+            background: white;
+            margin: 16px;
+            margin-top: 0;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1e293b;
+        }
+        
+        /* Todo Item */
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .todo-checkbox {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+        
+        .todo-text {
+            flex: 1;
+            font-size: 16px;
+            color: #1e293b;
+        }
+        
+        .todo-completed {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+        
+        .todo-delete {
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        /* Habit Grid */
+        .habit-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        
+        .habit-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .habit-checked {
+            background: #d1fae5;
+        }
+        
+        .habit-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+        
+        .habit-name {
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .habit-check {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            color: #10b981;
+            font-size: 12px;
+        }
+        
+        /* Add Button */
+        .add-btn {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .add-input {
+            flex: 1;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+        }
+        
+        .add-submit {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: flex-end;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #64748b;
+            display: block;
+        }
+        
+        .input-field {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+        }
+        
+        .input-small {
+            width: 120px;
+        }
+        
+        .save-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .nav-btn {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            text-align: center;
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        
+        .nav-btn.active {
+            color: #3b82f6;
+        }
+        
+        .nav-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        .nav-text {
+            font-size: 12px;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        /* Stats Page */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <header class="app-header">
-      <div class="logo">
-        <div class="logo-icon">📖</div>
-        <div class="logo-text">
-          <span class="logo-title">DayFlow</span>
-          <span class="logo-subtitle">效率管理</span>
-        </div>
-      </div>
-      <div class="header-actions">
-        <span id="syncStatus" style="font-size: 12px; color: #64748b; margin-right: 8px;"></span>
-        <button class="btn-icon" id="settingsBtn"><i class="fas fa-cog"></i></button>
-      </div>
-    </header>
-
-    <main class="main-content">
-      <section id="todayPage" class="page active">
-        <div class="today-header">
-          <div class="date-display">
-            <h1 class="date-main" id="currentDate">--月--日</h1>
-            <p class="date-sub" id="currentWeekday">星期-</p>
-          </div>
+    <!-- TODAY PAGE -->
+    <div id="todayPage" class="page">
+        <div class="header">
+            <div class="date-main" id="currentDate">--月--日</div>
+            <div class="date-sub" id="currentWeekday">星期-</div>
         </div>
         
-        <!-- 日期选择器 -->
-        <div class="today-date-selector" style="background: white; padding: 12px 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-            <input type="date" id="todayDatePicker" style="flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
-            <button id="todayGoToDate" style="background: #3b82f6; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-size: 14px;">跳转</button>
-          </div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-            <button class="today-quick-date" data-offset="0">今天</button>
-            <button class="today-quick-date" data-offset="-1">昨天</button>
-            <button class="today-quick-date" data-offset="-2">前天</button>
-            <button class="today-quick-date" data-offset="-3">3天前</button>
-            <button class="today-quick-date" data-offset="-7">7天前</button>
-          </div>
-        </div>
-
+        <!-- Quick Actions -->
         <div class="quick-actions">
-          <button class="quick-btn" id="todoBtn">
-            <div class="quick-icon">📝</div>
-            <span>待办事项</span>
-          </button>
-          <button class="quick-btn" id="dietBtn">
-            <div class="quick-icon">🍽️</div>
-            <span>饮食记录</span>
-          </button>
-          <button class="quick-btn" id="pomodoroBtn">
-            <div class="quick-icon">🍅</div>
-            <span>番茄钟</span>
-          </button>
-          <button class="quick-btn" id="habitBtn">
-            <div class="quick-icon">✅</div>
-            <span>习惯打卡</span>
-          </button>
-        </div>
-
-        <div class="today-overview">
-          <h2 class="overview-title">📊 每日总览</h2>
-          <div class="overview-cards">
-            <div class="overview-card" id="overviewTodos">
-              <div class="overview-icon">📝</div>
-              <div class="overview-info">
-                <span class="overview-count">0/0</span>
-                <span class="overview-label">待办事项</span>
-              </div>
-            </div>
-            <div class="overview-card" id="overviewHabits">
-              <div class="overview-icon">✅</div>
-              <div class="overview-info">
-                <span class="overview-count">0/0</span>
-                <span class="overview-label">习惯打卡</span>
-              </div>
-            </div>
-            <div class="overview-card" id="overviewDiet">
-              <div class="overview-icon">🍽️</div>
-              <div class="overview-info">
-                <span class="overview-count">0</span>
-                <span class="overview-label">卡路里</span>
-              </div>
-            </div>
-            <div class="overview-card" id="overviewEvents">
-              <div class="overview-icon">📅</div>
-              <div class="overview-info">
-                <span class="overview-count">0</span>
-                <span class="overview-label">行程</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="today-review">
-          <h2 class="review-title">📋 每日复盘</h2>
-          <div class="review-content" id="reviewContent">
-            <div class="review-empty">今天还没有记录任何内容，开始记录吧！</div>
-          </div>
-        </div>
-      </section>
-
-      <section id="calendarPage" class="page">
-        <div class="calendar-header">
-          <button class="btn-nav" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
-          <h2 class="calendar-title" id="calendarTitle">2026年2月</h2>
-          <button class="btn-nav" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
-        </div>
-        <div class="calendar-date-picker">
-          <label>快速选择日期：</label>
-          <input type="date" id="calendarDatePicker">
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-        <div class="selected-date-events">
-          <div class="selected-date-header">
-            <h3 id="selectedDateTitle">2月19日 行程</h3>
-            <button class="btn-add-small" id="addEventFromCalendar"><i class="fas fa-plus"></i> 添加</button>
-          </div>
-          <div class="event-list-calendar" id="eventListCalendar"></div>
-        </div>
-      </section>
-
-      <section id="statsPage" class="page">
-        <div class="stats-header">
-          <h2 class="page-title">📊 数据统计</h2>
-          <div class="period-selector">
-            <button class="period-btn active" data-period="week">本周</button>
-            <button class="period-btn" data-period="month">本月</button>
-            <button class="period-btn" data-period="custom">自选</button>
-          </div>
-        </div>
-        <!-- 快捷日期按钮 -->
-        <div class="stats-quick-dates" style="margin-bottom: 16px; background: white; padding: 12px; border-radius: 12px;">
-          <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">快速选择：</div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-            <button class="stats-quick-btn active" data-range="today">今天</button>
-            <button class="stats-quick-btn" data-range="yesterday">昨天</button>
-            <button class="stats-quick-btn" data-range="week">最近7天</button>
-            <button class="stats-quick-btn" data-range="month">最近30天</button>
-            <button class="stats-quick-btn" data-range="custom">自选</button>
-          </div>
+            <button class="quick-btn" onclick="openTodoModal()">
+                <div class="quick-icon">📝</div>
+                <div class="quick-text">待办事项</div>
+            </button>
+            <button class="quick-btn" onclick="openDietModal()">
+                <div class="quick-icon">🍽️</div>
+                <div class="quick-text">饮食记录</div>
+            </button>
+            <button class="quick-btn">
+                <div class="quick-icon">🍅</div>
+                <div class="quick-text">番茄钟</div>
+            </button>
+            <button class="quick-btn" onclick="openHabitModal()">
+                <div class="quick-icon">✅</div>
+                <div class="quick-text">习惯打卡</div>
+            </button>
         </div>
         
-        <div class="stats-date-picker" id="statsDatePicker" style="display: none; margin-bottom: 16px; background: white; padding: 12px; border-radius: 12px;">
-          <div style="display: flex; gap: 12px; align-items: center;">
-            <div style="flex: 1;">
-              <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">开始日期</label>
-              <input type="date" id="statsStartDate" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <!-- Overview -->
+        <div class="overview">
+            <div class="overview-title">📊 每日总览</div>
+            <div class="overview-grid">
+                <div class="overview-card" onclick="openTodoModal()">
+                    <div class="overview-icon">📝</div>
+                    <div class="overview-count" id="todoCount">0/0</div>
+                    <div class="overview-label">待办</div>
+                </div>
+                <div class="overview-card" onclick="openHabitModal()">
+                    <div class="overview-icon">✅</div>
+                    <div class="overview-count" id="habitCount">0/0</div>
+                    <div class="overview-label">习惯</div>
+                </div>
+                <div class="overview-card" onclick="openDietModal()">
+                    <div class="overview-icon">🍽️</div>
+                    <div class="overview-count" id="calorieCount">0</div>
+                    <div class="overview-label">卡路里</div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-icon">📅</div>
+                    <div class="overview-count">0</div>
+                    <div class="overview-label">行程</div>
+                </div>
             </div>
-            <div style="flex: 1;">
-              <label style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">结束日期</label>
-              <input type="date" id="statsEndDate" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px;">
-            </div>
-            <button id="applyStatsDate" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-top: 16px;">应用</button>
-          </div>
         </div>
-        <div class="stats-content" id="statsContent">
-          <!-- 习惯统计 -->
-          <div class="stats-card">
-            <h3 class="stats-card-title">🎯 习惯打卡率</h3>
-            <div class="stats-chart-container">
-              <canvas id="habitChart"></canvas>
-            </div>
-            <div class="stats-summary">
-              <div class="stats-item">
-                <span class="stats-label">本周完成率</span>
-                <span class="stats-value" id="habitRate">0%</span>
-              </div>
-              <div class="stats-item">
-                <span class="stats-label">最长连续</span>
-                <span class="stats-value" id="habitStreak">0 天</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 饮食统计 -->
-          <div class="stats-card">
-            <h3 class="stats-card-title">🍽️ 饮食摄入</h3>
-            <div class="stats-chart-container">
-              <canvas id="dietChart"></canvas>
-            </div>
-            <div class="stats-summary">
-              <div class="stats-item">
-                <span class="stats-label">平均摄入</span>
-                <span class="stats-value" id="avgCalories">0 千卡</span>
-              </div>
-              <div class="stats-item">
-                <span class="stats-label">记录天数</span>
-                <span class="stats-value" id="dietDays">0 天</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 待办统计 -->
-          <div class="stats-card">
-            <h3 class="stats-card-title">✅ 待办完成</h3>
-            <div class="stats-chart-container">
-              <canvas id="todoChart"></canvas>
-            </div>
-            <div class="stats-summary">
-              <div class="stats-item">
-                <span class="stats-label">完成率</span>
-                <span class="stats-value" id="todoRate">0%</span>
-              </div>
-              <div class="stats-item">
-                <span class="stats-label">已完成</span>
-                <span class="stats-value" id="todoCompleted">0 个</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 心情统计 -->
-          <div class="stats-card">
-            <h3 class="stats-card-title">😊 心情分布</h3>
-            <div class="stats-chart-container">
-              <canvas id="moodChart"></canvas>
-            </div>
-            <div class="stats-summary">
-              <div class="stats-item">
-                <span class="stats-label">平均心情</span>
-                <span class="stats-value" id="avgMood">😐</span>
-              </div>
-              <div class="stats-item">
-                <span class="stats-label">日记篇数</span>
-                <span class="stats-value" id="diaryCount">0 篇</span>
-              </div>
-            </div>
-          </div>
+        
+        <!-- Today's Todos -->
+        <div class="section" id="todoSection" style="display:none;">
+            <div class="section-title">📝 今日待办</div>
+            <div id="todoList"></div>
         </div>
-      </section>
-
-      <section id="diaryPage" class="page">
-        <div class="diary-header">
-          <h2 class="page-title">我的日记</h2>
-          <button class="btn-add" id="addDiaryBtn"><i class="fas fa-plus"></i> 写日记</button>
+        
+        <!-- Today's Habits -->
+        <div class="section" id="habitSection" style="display:none;">
+            <div class="section-title">✅ 习惯打卡</div>
+            <div class="habit-grid" id="habitList"></div>
         </div>
-        <div class="diary-list" id="diaryList"></div>
-      </section>
-    </main>
-
-    <nav class="bottom-nav">
-      <button class="nav-btn active" data-page="today"><i class="fas fa-edit"></i><span>记录</span></button>
-      <button class="nav-btn" data-page="calendar"><i class="fas fa-calendar-alt"></i><span>行事历</span></button>
-      <button class="nav-btn" data-page="stats"><i class="fas fa-chart-pie"></i><span>统计</span></button>
-      <button class="nav-btn" data-page="diary"><i class="fas fa-book"></i><span>日记</span></button>
-    </nav>
-
-    <!-- Modals -->
-    <div class="modal" id="todoModal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>待办事项</h3><button class="btn-close" id="closeTodo"><i class="fas fa-times"></i></button></div>
-        <div class="todo-date-selector">
-          <label>选择日期</label>
-          <input type="date" id="todoDate">
-          <div class="quick-date-btns" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-            <button class="quick-date-btn" data-target="todoDate" data-offset="0">今天</button>
-            <button class="quick-date-btn" data-target="todoDate" data-offset="-1">昨天</button>
-            <button class="quick-date-btn" data-target="todoDate" data-offset="-2">前天</button>
-            <button class="quick-date-btn" data-target="todoDate" data-offset="-3">3天前</button>
-            <button class="quick-date-btn" data-target="todoDate" data-offset="-7">7天前</button>
-          </div>
-        </div>
-        <div class="todo-input-wrapper"><input type="text" id="todoInput" placeholder="添加新的待办事项..."><button id="addTodoBtn"><i class="fas fa-plus"></i></button></div>
-        <div class="todo-list" id="todoList"></div>
-      </div>
     </div>
-
-    <div class="modal" id="habitModal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>习惯打卡</h3><button class="btn-close" id="closeHabit"><i class="fas fa-times"></i></button></div>
-        <div class="habit-date-selector">
-          <label>选择日期</label>
-          <input type="date" id="habitDate">
-          <div class="quick-date-btns" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-            <button class="quick-date-btn" data-target="habitDate" data-offset="0">今天</button>
-            <button class="quick-date-btn" data-target="habitDate" data-offset="-1">昨天</button>
-            <button class="quick-date-btn" data-target="habitDate" data-offset="-2">前天</button>
-            <button class="quick-date-btn" data-target="habitDate" data-offset="-3">3天前</button>
-            <button class="quick-date-btn" data-target="habitDate" data-offset="-7">7天前</button>
-          </div>
+    
+    <!-- STATS PAGE -->
+    <div id="statsPage" class="page" style="display:none;">
+        <div class="header">
+            <div class="date-main">📊 统计</div>
         </div>
-        <div class="habit-input-wrapper">
-          <input type="text" id="habitInput" placeholder="添加新习惯...">
-          <select id="habitIcon"><option value="💧">💧 水</option><option value="🏃">🏃 运动</option><option value="📖">📖 阅读</option><option value="🧘">🧘 冥想</option><option value="💤">💤 早睡</option></select>
-          <button id="addHabitBtn"><i class="fas fa-plus"></i></button>
+        
+        <div style="padding: 16px;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="statTodoRate">0%</div>
+                    <div class="stat-label">待办完成率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statHabitRate">0%</div>
+                    <div class="stat-label">习惯打卡率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statAvgCal">0</div>
+                    <div class="stat-label">平均卡路里</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statDiaryCount">0</div>
+                    <div class="stat-label">日记篇数</div>
+                </div>
+            </div>
         </div>
-        <div class="habit-list" id="habitList"></div>
-      </div>
     </div>
-
+    
+    <!-- DIARY PAGE -->
+    <div id="diaryPage" class="page" style="display:none;">
+        <div class="header">
+            <div class="date-main">📖 日记</div>
+        </div>
+        <div id="diaryList"></div>
+    </div>
+    
+    <!-- MODALS -->
+    
+    <!-- Diet Modal -->
     <div class="modal" id="dietModal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>🍽️ 饮食记录</h3><button class="btn-close" id="closeDiet"><i class="fas fa-times"></i></button></div>
-        <div class="diet-date-selector">
-          <label>选择日期</label>
-          <input type="date" id="dietDate">
-          <div class="quick-date-btns" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-            <button class="quick-date-btn" data-target="dietDate" data-offset="0">今天</button>
-            <button class="quick-date-btn" data-target="dietDate" data-offset="-1">昨天</button>
-            <button class="quick-date-btn" data-target="dietDate" data-offset="-2">前天</button>
-            <button class="quick-date-btn" data-target="dietDate" data-offset="-3">3天前</button>
-            <button class="quick-date-btn" data-target="dietDate" data-offset="-7">7天前</button>
-          </div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">🍽️ 饮食记录</div>
+                <button class="modal-close" onclick="closeModal('dietModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">早餐</label>
+                    <input type="text" class="input-field" id="breakfastInput" placeholder="吃了什么...">
+                    <input type="number" class="input-field input-small" id="breakfastCal" placeholder="卡路里">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">午餐</label>
+                    <input type="text" class="input-field" id="lunchInput" placeholder="吃了什么...">
+                    <input type="number" class="input-field input-small" id="lunchCal" placeholder="卡路里">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">晚餐</label>
+                    <input type="text" class="input-field" id="dinnerInput" placeholder="吃了什么...">
+                    <input type="number" class="input-field input-small" id="dinnerCal" placeholder="卡路里">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">加餐</label>
+                    <input type="text" class="input-field" id="snackInput" placeholder="吃了什么...">
+                    <input type="number" class="input-field input-small" id="snackCal" placeholder="卡路里">
+                </div>
+                <button class="save-btn" onclick="saveDiet()">保存记录</button>
+            </div>
         </div>
-        <div class="meal-section"><h4>🌅 早餐</h4><div class="meal-input-wrapper"><input type="text" id="breakfastInput" placeholder="吃了什么？"><input type="number" id="breakfastCal" placeholder="卡路里" min="0"></div></div>
-        <div class="meal-section"><h4>☀️ 午餐</h4><div class="meal-input-wrapper"><input type="text" id="lunchInput" placeholder="吃了什么？"><input type="number" id="lunchCal" placeholder="卡路里" min="0"></div></div>
-        <div class="meal-section"><h4>🌙 晚餐</h4><div class="meal-input-wrapper"><input type="text" id="dinnerInput" placeholder="吃了什么？"><input type="number" id="dinnerCal" placeholder="卡路里" min="0"></div></div>
-        <div class="meal-section"><h4>🍿 加餐</h4><div class="meal-input-wrapper"><input type="text" id="snackInput" placeholder="吃了什么？"><input type="number" id="snackCal" placeholder="卡路里" min="0"></div></div>
-        <div class="diet-summary"><div class="calorie-total"><span>今日总摄入：</span><span id="totalCalories">0</span><span>千卡</span></div></div>
-        <button class="btn-submit" id="saveDiet">保存记录</button>
-      </div>
     </div>
-
-    <div class="modal" id="pomodoroModal">
-      <div class="modal-content pomodoro-content">
-        <div class="pomodoro-timer">
-          <div class="timer-display"><span id="timerMinutes">25</span>:<span id="timerSeconds">00</span></div>
+    
+    <!-- Todo Modal -->
+    <div class="modal" id="todoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📝 待办事项</div>
+                <button class="modal-close" onclick="closeModal('todoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="add-btn">
+                    <input type="text" class="add-input" id="todoInput" placeholder="添加新待办...">
+                    <button class="add-submit" onclick="addTodo()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="todoModalList"></div>
+            </div>
         </div>
-        <div class="timer-controls">
-          <button class="timer-btn" id="timerToggle"><i class="fas fa-play"></i> 开始</button>
-          <button class="timer-btn secondary" id="timerReset"><i class="fas fa-redo"></i> 重置</button>
-        </div>
-        <div class="timer-settings">
-          <button class="duration-btn active" data-duration="25">25分钟</button>
-          <button class="duration-btn" data-duration="45">45分钟</button>
-          <button class="duration-btn" data-duration="60">60分钟</button>
-        </div>
-        <button class="btn-close-modal" id="closePomodoro"><i class="fas fa-times"></i></button>
-      </div>
     </div>
-
-    <div class="modal" id="diaryModal">
-      <div class="modal-content diary-modal-content">
-        <div class="modal-header"><h3>✏️ 写日记</h3><button class="btn-close" id="closeDiaryModal"><i class="fas fa-times"></i></button></div>
-        <div class="diary-form">
-          <div class="form-group"><label>日期</label><input type="date" id="diaryDate" required></div>
-          <div class="form-group"><label>标题</label><input type="text" id="diaryTitle" placeholder="今天发生了什么..." required></div>
-          <div class="form-group"><label>内容</label><textarea id="diaryContent" rows="8" placeholder="记录下今天的所思所想..."></textarea></div>
-          <div class="form-group"><label>心情</label><div class="diary-mood-selector"><button type="button" class="diary-mood-btn" data-mood="5">😄 超棒</button><button type="button" class="diary-mood-btn" data-mood="4">😊 不错</button><button type="button" class="diary-mood-btn active" data-mood="3">😐 一般</button><button type="button" class="diary-mood-btn" data-mood="2">😔 不太好</button><button type="button" class="diary-mood-btn" data-mood="1">😫 糟糕</button></div></div>
-          <button class="btn-submit" id="saveDiaryBtn">保存日记</button>
+    
+    <!-- Habit Modal -->
+    <div class="modal" id="habitModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">✅ 习惯打卡</div>
+                <button class="modal-close" onclick="closeModal('habitModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="add-btn">
+                    <input type="text" class="add-input" id="habitInput" placeholder="添加新习惯...">
+                    <button class="add-submit" onclick="addHabit()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="habitModalList"></div>
+            </div>
         </div>
-      </div>
     </div>
-
-    <div class="modal" id="viewDiaryModal">
-      <div class="modal-content diary-modal-content">
-        <div class="modal-header"><h3 id="viewDiaryTitle">日记标题</h3><button class="btn-close" id="closeViewDiary"><i class="fas fa-times"></i></button></div>
-        <div class="view-diary-content">
-          <div class="view-diary-meta"><span id="viewDiaryDate"></span><span id="viewDiaryMood"></span></div>
-          <div class="view-diary-text" id="viewDiaryText"></div>
-          <div class="view-diary-actions" style="margin-top: 20px; display: flex; gap: 12px;">
-            <button class="btn-submit" id="editDiaryBtn" style="flex: 1; background: #3b82f6;"><i class="fas fa-edit"></i> 编辑</button>
-            <button class="btn-submit" id="deleteDiaryBtn" style="flex: 1; background: #ef4444;"><i class="fas fa-trash"></i> 删除</button>
-          </div>
-        </div>
-      </div>
+    
+    <!-- Bottom Nav -->
+    <div class="bottom-nav">
+        <button class="nav-btn active" onclick="showPage('today')">
+            <div class="nav-icon"><i class="fas fa-edit"></i></div>
+            <div class="nav-text">记录</div>
+        </button>
+        <button class="nav-btn" onclick="showPage('stats')">
+            <div class="nav-icon"><i class="fas fa-chart-pie"></i></div>
+            <div class="nav-text">统计</div>
+        </button>
+        <button class="nav-btn" onclick="showPage('diary')">
+            <div class="nav-icon"><i class="fas fa-book"></i></div>
+            <div class="nav-text">日记</div>
+        </button>
     </div>
-
-    <div class="modal" id="addEventModal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>📅 添加行程</h3><button class="btn-close" id="closeAddEvent"><i class="fas fa-times"></i></button></div>
-        <div class="add-event-container">
-          <div class="form-group"><label>日期</label><input type="date" id="newEventDate" readonly></div>
-          <div class="form-group"><label>时间</label><input type="time" id="newEventTime"></div>
-          <div class="form-group"><label>事件内容</label><input type="text" id="newEventTitle" placeholder="例如：项目会议"></div>
-          <div class="form-group"><label>类型</label><select id="newEventType"><option value="work">💼 工作</option><option value="personal">🏠 个人</option><option value="meeting">👥 会议</option><option value="reminder">⏰ 提醒</option><option value="other">📌 其他</option></select></div>
-          <button class="btn-submit" id="saveNewEvent">保存行程</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal" id="settingsModal">
-      <div class="modal-content">
-        <div class="modal-header"><h3>设置</h3><button class="btn-close" id="closeSettings"><i class="fas fa-times"></i></button></div>
-        <div class="settings-container">
-          <div class="setting-item"><div class="setting-info"><h4>当前用户</h4><p id="currentUserEmail">未登录</p></div><button class="btn-setting" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> 退出登录</button></div>
-          <div class="setting-item"><div class="setting-info"><h4>🔄 同步数据</h4><p>上传本地数据到云端，并下载最新数据</p></div><button class="btn-setting" id="syncBtn" style="background: #3b82f6; color: white;"><i class="fas fa-sync"></i> 立即同步</button></div>
-          <div class="setting-item"><div class="setting-info"><h4>数据备份</h4><p>导出所有数据为JSON文件</p></div><button class="btn-setting" id="exportData"><i class="fas fa-download"></i> 导出数据</button></div>
-          <div class="setting-item"><div class="setting-info"><h4>数据恢复</h4><p>从JSON文件导入数据</p></div><input type="file" id="importFile" accept=".json" hidden><button class="btn-setting" id="importData"><i class="fas fa-upload"></i> 导入数据</button></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 登录/注册 Modal -->
-    <div class="modal" id="authModal" style="display: flex !important;">
-      <div class="modal-content" style="max-width: 400px; margin: auto;">
-        <div class="auth-tabs">
-          <button class="auth-tab active" id="loginTab">登录</button>
-          <button class="auth-tab" id="registerTab">注册</button>
-        </div>
-        
-        <!-- 登录表单 -->
-        <div id="loginForm">
-          <div class="form-group">
-            <label>邮箱</label>
-            <input type="email" id="loginEmail" placeholder="your@email.com">
-          </div>
-          <div class="form-group">
-            <label>密码</label>
-            <input type="password" id="loginPassword" placeholder="请输入密码">
-          </div>
-          <button class="btn-submit" id="doLogin">登录</button>
-        </div>
-        
-        <!-- 注册表单 -->
-        <div id="registerForm" style="display: none;">
-          <div class="form-group">
-            <label>邮箱</label>
-            <input type="email" id="registerEmail" placeholder="your@email.com">
-          </div>
-          <div class="form-group">
-            <label>密码</label>
-            <input type="password" id="registerPassword" placeholder="至少6位密码">
-          </div>
-          <div class="form-group">
-            <label>确认密码</label>
-            <input type="password" id="confirmPassword" placeholder="再次输入密码">
-          </div>
-          <button class="btn-submit" id="doRegister">注册</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
+    
+    <script src="app.js"></script>
 </body>
 </html>

@@ -1,1729 +1,393 @@
-// DayFlow App - Zeabur Version
-const SUPABASE_URL = 'https://xucrjpvmqpcrthlvrnxg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1Y3JqcHZtcXBjcnRobHZybnhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NTY0ODcsImV4cCI6MjA4NzAzMjQ4N30.5hcHWVHlx1feMIbgm7jvnFWwxxS5WKmBI1g5W8L5p9E';
+// DayFlow Web - 纯网页版
+// 使用 localStorage 存储数据
 
-let supabaseClient = null;
-let isOnline = false;
-
-const AppState = {
-  currentPage: 'today',
-  habits: [], todos: [], diets: [], events: [], diaries: [],
-  currentDate: new Date(), todoFilter: 'all', selectedDiaryMood: 3,
-  currentDiaryId: null,
-  currentUser: null,
-  statsDates: null
+// Storage
+const Storage = {
+    get(key) {
+        const data = localStorage.getItem('dayflow_' + key);
+        return data ? JSON.parse(data) : null;
+    },
+    set(key, value) {
+        localStorage.setItem('dayflow_' + key, JSON.stringify(value));
+    }
 };
 
-const Utils = {
-  formatDate(date) {
+// State
+let todos = Storage.get('todos') || [];
+let habits = Storage.get('habits') || [];
+let diets = Storage.get('diets') || [];
+let diaries = Storage.get('diaries') || [];
+let currentDate = new Date();
+
+// Utils
+const formatDate = (date) => {
     const d = new Date(date);
     const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
     const weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
     return {
-      date: `${d.getDate()}`, month: months[d.getMonth()], year: d.getFullYear(),
-      weekday: weekdays[d.getDay()],
-      full: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+        date: `${d.getDate()}`,
+        month: months[d.getMonth()],
+        year: d.getFullYear(),
+        weekday: weekdays[d.getDay()],
+        full: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
     };
-  },
-  generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,9); },
-  getMoodEmoji(mood) { const emojis = ['😫','😔','😐','😊','😄']; return emojis[(mood||3)-1] || '😐'; },
-  
-  // Helper: ensure item has timestamps
-  addTimestamps(item) {
-    const now = Date.now();
-    return {
-      ...item,
-      created_at: item.created_at || now,
-      updated_at: now  // Always update on save
-    };
-  },
-  
-  // Helper: merge two arrays by timestamp (Last-Write-Wins)
-  mergeByTimestamp(localItems, cloudItems) {
-    const merged = {};
-    
-    // Index local items
-    localItems.forEach(item => {
-      merged[item.id] = item;
-    });
-    
-    // Merge cloud items (timestamp comparison)
-    cloudItems.forEach(cloudItem => {
-      const localItem = merged[cloudItem.id];
-      if (!localItem) {
-        // New item from cloud
-        merged[cloudItem.id] = cloudItem;
-      } else {
-        // Conflict: compare timestamps
-        const cloudTime = cloudItem.updated_at || 0;
-        const localTime = localItem.updated_at || 0;
-        if (cloudTime > localTime) {
-          merged[cloudItem.id] = cloudItem;  // Cloud is newer
-        }
-        // If local is newer, keep local (already in merged)
-      }
-    });
-    
-    return Object.values(merged);
-  }
 };
 
-const LocalDB = {
-  get(key) { const d = localStorage.getItem(`dayflow_${key}`); return d ? JSON.parse(d) : null; },
-  set(key, val) { localStorage.setItem(`dayflow_${key}`, JSON.stringify(val)); }
-};
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 
-async function initSupabase() {
-  try {
-    let retries = 0;
-    while (typeof window.supabase === 'undefined' && retries < 5) {
-      await new Promise(r => setTimeout(r, 500));
-      retries++;
-    }
-    
-    if (typeof window.supabase === 'undefined') { 
-      console.warn('⚠️ Supabase SDK not loaded'); 
-      return false; 
-    }
-    
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
-    // Check if user is already logged in (for display only)
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-      AppState.currentUser = user;
-      console.log('✅ User logged in:', user.email);
-      hideAuthModal();
-      // NOTE: Cloud sync disabled - using localStorage only
-    } else {
-      console.log('👤 No user logged in');
-      showAuthModal();
-    }
-    
-    isOnline = true; 
-    return true;
-  } catch(e) { 
-    console.warn('❌ Supabase init failed:', e.message); 
-    isOnline = false; 
-    return false; 
-  }
+const getToday = () => formatDate(new Date()).full;
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    updateDate();
+    renderAll();
+});
+
+// Update date display
+function updateDate() {
+    const today = formatDate(currentDate);
+    document.getElementById('currentDate').textContent = today.month + today.date + '日';
+    document.getElementById('currentWeekday').textContent = today.weekday;
 }
 
-// Auth Functions
-function showAuthModal() {
-  document.getElementById('authModal').style.display = 'flex';
-  document.querySelector('.main-content').style.display = 'none';
-  document.querySelector('.bottom-nav').style.display = 'none';
-}
-
-function hideAuthModal() {
-  document.getElementById('authModal').style.display = 'none';
-  document.querySelector('.main-content').style.display = 'block';
-  document.querySelector('.bottom-nav').style.display = 'flex';
-  updateUserDisplay();
-}
-
-async function register(email, password) {
-  try {
-    const { data, error } = await supabaseClient.auth.signUp({
-      email: email,
-      password: password
-    });
-    
-    if (error) throw error;
-    
-    AppState.currentUser = data.user;
-    alert('✅ 注册成功！请登录');
-    switchToLogin();
-    return true;
-  } catch(e) {
-    alert('❌ 注册失败: ' + e.message);
-    return false;
-  }
-}
-
-async function login(email, password) {
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email: email,
-      password: password
-    });
-    
-    if (error) throw error;
-    
-    AppState.currentUser = data.user;
-    console.log('✅ 登录成功:', data.user.email);
-    hideAuthModal();
-    
-    // Check if there's local data that needs to be synced first
-    const hasLocalData = AppState.todos.length > 0 || AppState.habits.length > 0 || 
-                         AppState.diaries.length > 0 || AppState.diets.length > 0;
-    
-    if (hasLocalData) {
-      const shouldSync = confirm(`检测到本地有 ${AppState.todos.length} 条待办、${AppState.habits.length} 个习惯、${AppState.diaries.length} 篇日记、${AppState.diets.length} 条饮食记录。\n\n是否上传到云端？\n（选择"确定"上传本地数据，选择"取消"下载云端数据）`);
-      
-      if (shouldSync) {
-        console.log('📤 用户选择：上传本地数据到云端');
-        await syncLocalDataToSupabase();
-      } else {
-        console.log('📥 用户选择：下载云端数据（本地数据将被覆盖）');
-      }
-    }
-    
-    // Then load from cloud
-    await loadUserData();
-    alert('✅ 登录成功！数据已同步');
-    return true;
-  } catch(e) {
-    alert('❌ 登录失败: ' + e.message);
-    return false;
-  }
-}
-
-// Sync local data to Supabase (for new login)
-async function syncLocalDataToSupabase() {
-  if (!supabaseClient || !AppState.currentUser) return;
-  
-  try {
-    const userId = AppState.currentUser.id;
-    
-    // Sync todos with user_id
-    for (const todo of AppState.todos) {
-      const { user_id, ...rest } = todo;
-      const todoWithUser = { ...rest, user_id: userId };
-      const { error } = await supabaseClient.from('todos').upsert(todoWithUser);
-      if (error) console.warn('Failed to sync todo:', error);
-    }
-    
-    // Sync habits
-    for (const habit of AppState.habits) {
-      const { user_id, ...rest } = habit;
-      const habitWithUser = { ...rest, user_id: userId };
-      const { error } = await supabaseClient.from('habits').upsert(habitWithUser);
-      if (error) console.warn('Failed to sync habit:', error);
-    }
-    
-    // Sync diaries
-    for (const diary of AppState.diaries) {
-      const { user_id, ...rest } = diary;
-      const diaryWithUser = { ...rest, user_id: userId };
-      const { error } = await supabaseClient.from('diaries').upsert(diaryWithUser);
-      if (error) console.warn('Failed to sync diary:', error);
-    }
-    
-    // Sync diets (new array format)
-    for (const diet of AppState.diets) {
-      const { user_id, ...rest } = diet;
-      const dietWithUser = { ...rest, user_id: userId };
-      const { error } = await supabaseClient.from('diets').upsert(dietWithUser);
-      if (error) console.warn('Failed to sync diet:', error);
-    }
-    
-    // Sync events
-    for (const event of AppState.events) {
-      const { user_id, ...rest } = event;
-      const eventWithUser = { ...rest, user_id: userId };
-      const { error } = await supabaseClient.from('events').upsert(eventWithUser);
-      if (error) console.warn('Failed to sync event:', error);
-    }
-    
-    console.log('✅ 本地数据已同步到云端');
-  } catch(e) {
-    console.warn('❌ 同步失败:', e);
-  }
-}
-
-async function logout() {
-  try {
-    await supabaseClient.auth.signOut();
-    AppState.currentUser = null;
-    AppState.todos = []; AppState.habits = []; AppState.diaries = [];
-    AppState.diets = []; AppState.events = [];
-    alert('✅ 已退出登录');
-    showAuthModal();
-  } catch(e) {
-    console.error('Logout error:', e);
-  }
-}
-
-// ==========================================
-// NEW: Todoist-style Sync (Timestamp-based)
-// ==========================================
-
-async function syncWithCloud() {
-  if (!supabaseClient || !AppState.currentUser) {
-    console.log('⚠️ 未登录，跳过同步');
-    return;
-  }
-  
-  const userId = AppState.currentUser.id;
-  console.log('🔄 开始同步...');
-  
-  try {
-    // 1. 上传本地数据到云端
-    console.log('📤 上传本地数据...');
-    await uploadToCloud(userId);
-    
-    // 2. 从云端下载最新数据
-    console.log('📥 下载云端数据...');
-    const cloudData = await downloadFromCloud(userId);
-    
-    // 3. 合并数据（时间戳优先）
-    console.log('🔄 合并数据...');
-    AppState.todos = Utils.mergeByTimestamp(AppState.todos, cloudData.todos);
-    AppState.habits = Utils.mergeByTimestamp(AppState.habits, cloudData.habits);
-    AppState.diets = Utils.mergeByTimestamp(AppState.diets, cloudData.diets);
-    AppState.events = Utils.mergeByTimestamp(AppState.events, cloudData.events);
-    AppState.diaries = Utils.mergeByTimestamp(AppState.diaries, cloudData.diaries);
-    
-    // 4. 保存合并后的数据到本地
-    saveData();
-    
-    // 5. 刷新界面
-    renderOverview();
-    renderReview();
-    
-    console.log('✅ 同步完成！');
-    alert('✅ 数据已同步！');
-  } catch(e) {
-    console.error('❌ 同步失败:', e);
-    alert('❌ 同步失败: ' + e.message);
-  }
-}
-
-async function uploadToCloud(userId) {
-  console.log('📤 准备上传本地数据...');
-  console.log('  - 本地 diets:', AppState.diets.length, '条');
-  if (AppState.diets.length > 0) {
-    console.log('  - 第一条:', JSON.stringify(AppState.diets[0], null, 2));
-  }
-  
-  // 上传所有数据（带时间戳）
-  const promises = [];
-  
-  if (AppState.todos.length > 0) {
-    promises.push(supabaseClient.from('todos').upsert(
-      AppState.todos.map(t => ({ ...t, user_id: userId }))
-    ));
-  }
-  if (AppState.habits.length > 0) {
-    promises.push(supabaseClient.from('habits').upsert(
-      AppState.habits.map(h => ({ ...h, user_id: userId }))
-    ));
-  }
-  if (AppState.diets.length > 0) {
-    console.log('📤 正在上传 diets...');
-    const result = await supabaseClient.from('diets').upsert(
-      AppState.diets.map(d => ({ ...d, user_id: userId }))
-    );
-    if (result.error) {
-      console.error('❌ 上传 diets 失败:', result.error);
-    } else {
-      console.log('✅ 上传 diets 成功');
-    }
-  }
-  if (AppState.events.length > 0) {
-    promises.push(supabaseClient.from('events').upsert(
-      AppState.events.map(e => ({ ...e, user_id: userId }))
-    ));
-  }
-  if (AppState.diaries.length > 0) {
-    promises.push(supabaseClient.from('diaries').upsert(
-      AppState.diaries.map(d => ({ ...d, user_id: userId }))
-    ));
-  }
-  
-  await Promise.all(promises);
-  console.log('✅ 上传完成');
-}
-
-async function downloadFromCloud(userId) {
-  console.log('🔍 正在查询云端数据，用户ID:', userId);
-  
-  const [todosRes, habitsRes, dietsRes, eventsRes, diariesRes] = await Promise.all([
-    supabaseClient.from('todos').select('*').eq('user_id', userId),
-    supabaseClient.from('habits').select('*').eq('user_id', userId),
-    supabaseClient.from('diets').select('*').eq('user_id', userId),
-    supabaseClient.from('events').select('*').eq('user_id', userId),
-    supabaseClient.from('diaries').select('*').eq('user_id', userId)
-  ]);
-  
-  // DEBUG: 显示云端返回的数据
-  console.log('📊 云端数据查询结果:');
-  console.log('  - todos:', todosRes.data?.length || 0, '条', todosRes.error ? '错误:'+todosRes.error.message : '');
-  console.log('  - habits:', habitsRes.data?.length || 0, '条', habitsRes.error ? '错误:'+habitsRes.error.message : '');
-  console.log('  - diets:', dietsRes.data?.length || 0, '条', dietsRes.error ? '错误:'+dietsRes.error.message : '');
-  console.log('  - events:', eventsRes.data?.length || 0, '条', eventsRes.error ? '错误:'+eventsRes.error.message : '');
-  console.log('  - diaries:', diariesRes.data?.length || 0, '条', diariesRes.error ? '错误:'+diariesRes.error.message : '');
-  
-  if (dietsRes.data && dietsRes.data.length > 0) {
-    console.log('📄 云端第一条饮食记录:', JSON.stringify(dietsRes.data[0], null, 2));
-  }
-  
-  return {
-    todos: todosRes.data || [],
-    habits: habitsRes.data || [],
-    diets: dietsRes.data || [],
-    events: eventsRes.data || [],
-    diaries: diariesRes.data || []
-  };
-}
-
-function switchToLogin() {
-  document.getElementById('loginForm').style.display = 'block';
-  document.getElementById('registerForm').style.display = 'none';
-  document.getElementById('loginTab').classList.add('active');
-  document.getElementById('registerTab').classList.remove('active');
-}
-
-function switchToRegister() {
-  document.getElementById('loginForm').style.display = 'none';
-  document.getElementById('registerForm').style.display = 'block';
-  document.getElementById('loginTab').classList.remove('active');
-  document.getElementById('registerTab').classList.add('active');
-}
-
-function updateUserDisplay() {
-  const email = AppState.currentUser?.email || '未登录';
-  document.getElementById('currentUserEmail').textContent = email;
-}
-
-// Load user data from Supabase
-async function loadUserData() {
-  if (!AppState.currentUser) return;
-  
-  try {
-    const userId = AppState.currentUser.id;
-    console.log('📥 Loading data from Supabase for user:', userId);
-    
-    // Load todos
-    const { data: todos, error: todosError } = await supabaseClient.from('todos').select('*').eq('user_id', userId);
-    if (todosError) console.warn('❌ Failed to load todos:', todosError);
-    else if (todos) {
-      AppState.todos = todos;
-      console.log('✅ Loaded', todos.length, 'todos');
-    }
-    
-    // Load habits
-    const { data: habits, error: habitsError } = await supabaseClient.from('habits').select('*').eq('user_id', userId);
-    if (habitsError) console.warn('❌ Failed to load habits:', habitsError);
-    else if (habits) {
-      AppState.habits = habits;
-      console.log('✅ Loaded', habits.length, 'habits');
-    }
-    
-    // Load diaries
-    const { data: diaries, error: diariesError } = await supabaseClient.from('diaries').select('*').eq('user_id', userId);
-    if (diariesError) console.warn('❌ Failed to load diaries:', diariesError);
-    else if (diaries) {
-      AppState.diaries = diaries;
-      console.log('✅ Loaded', diaries.length, 'diaries');
-    }
-    
-    // Load diets (new array format)
-    const { data: diets, error: dietsError } = await supabaseClient.from('diets').select('*').eq('user_id', userId);
-    if (dietsError) {
-      console.warn('❌ Failed to load diets:', dietsError);
-      alert('饮食加载失败: ' + dietsError.message + '\n\n可能原因:\n1. diets 表不存在\n2. RLS 权限未设置');
-    }
-    else if (diets) {
-      console.log('DEBUG: Loaded diets from cloud:', diets);
-      if (diets.length > 0) {
-        console.log('DEBUG: First diet user_id:', diets[0].user_id, typeof diets[0].user_id);
-      }
-      // Clean up user_id to ensure it's a string, not an object
-      AppState.diets = diets.map(d => ({
-        ...d,
-        user_id: typeof d.user_id === 'object' ? d.user_id.user_id : d.user_id
-      }));
-      console.log('✅ Loaded', diets.length, 'diets');
-    }
-    
-    // Load events
-    const { data: events, error: eventsError } = await supabaseClient.from('events').select('*').eq('user_id', userId);
-    if (eventsError) console.warn('❌ Failed to load events:', eventsError);
-    else if (events) {
-      AppState.events = events;
-      console.log('✅ Loaded', events.length, 'events');
-    }
-    
-    console.log('✅ User data loaded from Supabase');
-    
-    // Save to local storage (without triggering cloud sync)
-    LocalDB.set('todos', AppState.todos);
-    LocalDB.set('habits', AppState.habits);
-    LocalDB.set('diets', AppState.diets);
-    LocalDB.set('events', AppState.events);
-    LocalDB.set('diaries', AppState.diaries);
-    console.log('💾 Saved cloud data to local storage');
-    
-    renderOverview(); renderReview();
-  } catch(e) {
-    console.error('❌ Failed to load user data:', e);
-  }
-}
-
-// Sync local data to Supabase
-async function syncToSupabase() {
-  if (!isOnline || !supabaseClient) return;
-  
-  try {
-    console.log('🔄 Syncing local data to Supabase...');
-    
-    // Sync todos
-    for (const todo of AppState.todos) {
-      const { error } = await supabaseClient.from('todos').upsert(todo);
-      if (error) console.warn('Failed to sync todo:', error);
-    }
-    
-    // Sync habits
-    for (const habit of AppState.habits) {
-      const { error } = await supabaseClient.from('habits').upsert(habit);
-      if (error) console.warn('Failed to sync habit:', error);
-    }
-    
-    // Sync diaries
-    for (const diary of AppState.diaries) {
-      const { error } = await supabaseClient.from('diaries').upsert(diary);
-      if (error) console.warn('Failed to sync diary:', error);
-    }
-    
-    console.log('✅ Sync complete');
-  } catch(e) {
-    console.warn('❌ Sync failed:', e.message);
-  }
-}
-
-function loadData() {
-  AppState.todos = LocalDB.get('todos') || [];
-  AppState.habits = LocalDB.get('habits') || [];
-  // Support both old (object) and new (array) format
-  const oldDiet = LocalDB.get('diet');
-  const newDiets = LocalDB.get('diets');
-  if (newDiets) {
-    AppState.diets = newDiets;
-  } else if (oldDiet) {
-    // Convert old format to new
-    AppState.diets = Object.entries(oldDiet).map(([date, data]) => ({
-      id: data.id || Utils.generateId(),
-      date: date,
-      breakfast: data.breakfast?.food || '',
-      breakfastCal: data.breakfast?.calories || 0,
-      lunch: data.lunch?.food || '',
-      lunchCal: data.lunch?.calories || 0,
-      dinner: data.dinner?.food || '',
-      dinnerCal: data.dinner?.calories || 0,
-      snack: data.snack?.food || '',
-      snackCal: data.snack?.calories || 0,
-      created_at: data.created_at || new Date().toISOString()
-    }));
-  } else {
-    AppState.diets = [];
-  }
-  AppState.events = LocalDB.get('events') || [];
-  AppState.diaries = LocalDB.get('diaries') || [];
-}
-
-async function saveData() {
-  LocalDB.set('todos', AppState.todos);
-  LocalDB.set('habits', AppState.habits);
-  LocalDB.set('diets', AppState.diets);
-  LocalDB.set('events', AppState.events);
-  LocalDB.set('diaries', AppState.diaries);
-  
-  // NOTE: Cloud sync disabled for stability
-  // Data is saved to localStorage only
-  console.log('💾 Saved to localStorage (cloud sync disabled)');
-}
-
-// Auto sync all data to Supabase (lightweight version for frequent saves)
-async function autoSyncToSupabase() {
-  if (!supabaseClient || !AppState.currentUser) {
-    console.log('⚠️ Cannot sync: not logged in or no supabase client');
-    return;
-  }
-  
-  const userId = AppState.currentUser.id;
-  const syncStatus = document.getElementById('syncStatus');
-  if (syncStatus) syncStatus.textContent = '同步中...';
-  
-  // Batch upsert all data types
-  try {
-    console.log('🔄 Starting auto-sync for user:', userId);
+// Render all
+function renderAll() {
+    const dateStr = formatDate(currentDate).full;
     
     // Todos
-    if (AppState.todos.length > 0) {
-      const todosWithUser = AppState.todos.map(t => {
-        const { user_id, ...rest } = t;
-        return { ...rest, user_id: userId };
-      });
-      const { error } = await supabaseClient.from('todos').upsert(todosWithUser);
-      if (error) console.warn('❌ Failed to sync todos:', error);
-      else console.log('✅ Synced', AppState.todos.length, 'todos');
-    }
+    const todayTodos = todos.filter(t => t.date === dateStr);
+    const completedTodos = todayTodos.filter(t => t.completed).length;
+    document.getElementById('todoCount').textContent = `${completedTodos}/${todayTodos.length}`;
+    renderTodoList(todayTodos);
+    document.getElementById('todoSection').style.display = todayTodos.length > 0 ? 'block' : 'none';
     
     // Habits
-    if (AppState.habits.length > 0) {
-      const habitsWithUser = AppState.habits.map(h => {
-        const { user_id, ...rest } = h;
-        return { ...rest, user_id: userId };
-      });
-      const { error } = await supabaseClient.from('habits').upsert(habitsWithUser);
-      if (error) console.warn('❌ Failed to sync habits:', error);
-      else console.log('✅ Synced', AppState.habits.length, 'habits');
-    }
+    const checkedHabits = habits.filter(h => h.checkIns && h.checkIns.includes(dateStr));
+    document.getElementById('habitCount').textContent = `${checkedHabits.length}/${habits.length}`;
+    renderHabitList();
+    document.getElementById('habitSection').style.display = habits.length > 0 ? 'block' : 'none';
     
-    // Diaries
-    if (AppState.diaries.length > 0) {
-      const diariesWithUser = AppState.diaries.map(d => {
-        const { user_id, ...rest } = d;
-        return { ...rest, user_id: userId };
-      });
-      const { error } = await supabaseClient.from('diaries').upsert(diariesWithUser);
-      if (error) console.warn('❌ Failed to sync diaries:', error);
-      else console.log('✅ Synced', AppState.diaries.length, 'diaries');
-    }
+    // Diet
+    const todayDiet = diets.find(d => d.date === dateStr);
+    const totalCal = todayDiet ? 
+        (todayDiet.breakfastCal || 0) + (todayDiet.lunchCal || 0) + 
+        (todayDiet.dinnerCal || 0) + (todayDiet.snackCal || 0) : 0;
+    document.getElementById('calorieCount').textContent = totalCal;
     
-    // Diets (new array format)
-    // Ensure AppState.diets is an array
-    if (!Array.isArray(AppState.diets)) {
-      console.warn('⚠️ AppState.diets is not an array, converting...', AppState.diets);
-      AppState.diets = [];
-    }
-    if (AppState.diets.length > 0) {
-      const dietsWithUser = AppState.diets.map(d => {
-        // Build object manually to avoid any spread issues
-        const cleanDiet = {
-          id: d.id,
-          date: d.date,
-          breakfast: d.breakfast,
-          breakfastCal: d.breakfastCal,
-          lunch: d.lunch,
-          lunchCal: d.lunchCal,
-          dinner: d.dinner,
-          dinnerCal: d.dinnerCal,
-          snack: d.snack,
-          snackCal: d.snackCal,
-          created_at: d.created_at,
-          user_id: userId  // Set user_id explicitly
-        };
-        return cleanDiet;
-      });
-      console.log('DEBUG: Sending diets to Supabase:', JSON.stringify(dietsWithUser, null, 2));
-      const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
-      if (error) {
-        console.warn('❌ Failed to sync diets:', error);
-        alert('饮食同步失败: ' + error.message);
-      }
-      else console.log('✅ Synced', AppState.diets.length, 'diets');
-    }
+    // Stats
+    updateStats();
     
-    // Events
-    if (AppState.events.length > 0) {
-      const eventsWithUser = AppState.events.map(e => {
-        const { user_id, ...rest } = e;
-        return { ...rest, user_id: userId };
-      });
-      const { error } = await supabaseClient.from('events').upsert(eventsWithUser);
-      if (error) console.warn('❌ Failed to sync events:', error);
-      else console.log('✅ Synced', AppState.events.length, 'events');
-    }
+    // Diary
+    renderDiaryList();
+}
+
+// Todo Functions
+function addTodo() {
+    const input = document.getElementById('todoInput');
+    const text = input.value.trim();
+    if (!text) return;
     
-    console.log('☁️ Auto-sync complete');
-    if (syncStatus) {
-      syncStatus.textContent = '已同步';
-      setTimeout(() => { syncStatus.textContent = ''; }, 2000);
-    }
-  } catch(e) {
-    console.warn('❌ Auto-sync failed:', e);
-    if (syncStatus) {
-      syncStatus.textContent = '同步失败';
-      setTimeout(() => { syncStatus.textContent = ''; }, 3000);
-    }
-  }
-}
-
-// Save to Supabase with user_id
-async function saveToSupabase(table, data) {
-  if (!supabaseClient || !AppState.currentUser) return;
-  
-  try {
-    const { user_id, ...rest } = data;
-    const dataWithUser = { ...rest, user_id: AppState.currentUser.id };
-    const { error } = await supabaseClient.from(table).upsert(dataWithUser);
-    if (error) console.warn(`Failed to save ${table}:`, error);
-  } catch(e) {
-    console.warn(`Supabase save error:`, e);
-  }
-}
-
-function initToday() {
-  // Reset to today on page load
-  AppState.currentDate = new Date();
-  const today = Utils.formatDate(AppState.currentDate);
-  document.getElementById('currentDate').textContent = `${today.month}${today.date}日`;
-  document.getElementById('currentWeekday').textContent = today.weekday;
-  
-  // Update date picker to today
-  const datePicker = document.getElementById('todayDatePicker');
-  if (datePicker) datePicker.value = today.full;
-  
-  renderOverview(); renderReview();
-}
-
-function renderOverview() {
-  // Use current selected date, not always today
-  const currentDate = Utils.formatDate(AppState.currentDate).full;
-  const todos = AppState.todos.filter(t => t.date === currentDate);
-  const completed = todos.filter(t => t.completed).length;
-  document.querySelector('#overviewTodos .overview-count').textContent = `${completed}/${todos.length}`;
-  
-  const checked = AppState.habits.filter(h => (h.checkIns||[]).includes(currentDate)).length;
-  document.querySelector('#overviewHabits .overview-count').textContent = `${checked}/${AppState.habits.length}`;
-  
-  const diet = AppState.diets.find(d => d.date === currentDate);
-  let cal = 0;
-  if (diet) cal = (diet.breakfastCal || 0) + (diet.lunchCal || 0) + (diet.dinnerCal || 0) + (diet.snackCal || 0);
-  document.querySelector('#overviewDiet .overview-count').textContent = cal;
-  
-  const events = AppState.events.filter(e => e.date === currentDate).length;
-  document.querySelector('#overviewEvents .overview-count').textContent = events;
-}
-
-function renderReview() {
-  const container = document.getElementById('reviewContent');
-  // Use current selected date, not always today
-  const currentDate = Utils.formatDate(AppState.currentDate).full;
-  let html = '';
-  
-  const completedTodos = AppState.todos.filter(t => t.date === currentDate && t.completed);
-  if (completedTodos.length) {
-    html += `<div class="review-section"><h4>✅ 完成的待办 (${completedTodos.length})</h4><ul>`;
-    html += completedTodos.map(t => `<li>${t.text}</li>`).join('');
-    html += '</ul></div>';
-  }
-  
-  const checkedHabits = AppState.habits.filter(h => (h.checkIns||[]).includes(currentDate));
-  if (checkedHabits.length) {
-    html += `<div class="review-section"><h4>🎯 打卡的习惯 (${checkedHabits.length})</h4><ul>`;
-    html += checkedHabits.map(h => `<li>${h.icon||'✨'} ${h.name}</li>`).join('');
-    html += '</ul></div>';
-  }
-  
-  const currentDiet = AppState.diets.find(d => d.date === currentDate);
-  if (currentDiet) {
-    const meals = [];
-    if (currentDiet.breakfast) meals.push(`早餐：${currentDiet.breakfast}`);
-    if (currentDiet.lunch) meals.push(`午餐：${currentDiet.lunch}`);
-    if (currentDiet.dinner) meals.push(`晚餐：${currentDiet.dinner}`);
-    if (currentDiet.snack) meals.push(`加餐：${currentDiet.snack}`);
-    if (meals.length) {
-      html += `<div class="review-section"><h4>🍽️ 饮食记录 (${meals.length}餐)</h4><ul>`;
-      html += meals.map(m => `<li>${m}</li>`).join('');
-      html += '</ul></div>';
-    }
-  }
-  
-  const currentEvents = AppState.events.filter(e => e.date === currentDate);
-  if (currentEvents.length) {
-    html += `<div class="review-section"><h4>📅 今日行程 (${currentEvents.length})</h4><ul>`;
-    html += currentEvents.map(e => `<li>${e.time||'全天'} - ${e.title}</li>`).join('');
-    html += '</ul></div>';
-  }
-  
-  const currentDiary = AppState.diaries.find(d => d.date === currentDate);
-  if (currentDiary) {
-    html += `<div class="review-section"><h4>📖 今日日记</h4><div class="review-diary"><strong>${currentDiary.title}</strong><p>${currentDiary.content || ''}</p></div></div>`;
-  }
-  
-  container.innerHTML = html || '<div class="review-empty">今天还没有记录任何内容，开始记录吧！</div>';
-  
-  
-}
-
-function showPage(page) {
-  AppState.currentPage = page;
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`${page}Page`)?.classList.add('active');
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
-  if (page === 'calendar') { renderCalendar(); renderDayEvents(); }
-  if (page === 'stats') { 
-    setTimeout(() => {
-      renderStats();
-      bindStatsButtons();
-    }, 100); 
-  }
-  if (page === 'diary') renderDiaryList();
-}
-
-// Bind stats page buttons (called when stats page is shown)
-function bindStatsButtons() {
-  // Stats quick date buttons
-  document.querySelectorAll('.stats-quick-btn').forEach(btn => {
-    // Remove existing listener to avoid duplicates
-    btn.replaceWith(btn.cloneNode(true));
-  });
-  
-  // Re-add listeners
-  document.querySelectorAll('.stats-quick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.stats-quick-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      const range = btn.dataset.range;
-      const datePicker = document.getElementById('statsDatePicker');
-      
-      if (range === 'custom') {
-        datePicker.style.display = 'block';
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - 6);
-        document.getElementById('statsEndDate').value = Utils.formatDate(end).full;
-        document.getElementById('statsStartDate').value = Utils.formatDate(start).full;
-      } else {
-        datePicker.style.display = 'none';
-        
-        let dates;
-        const today = new Date();
-        
-        switch(range) {
-          case 'today':
-            dates = [Utils.formatDate(today).full];
-            break;
-          case 'yesterday':
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            dates = [Utils.formatDate(yesterday).full];
-            break;
-          case 'week':
-            dates = [];
-            for (let i = 6; i >= 0; i--) {
-              const d = new Date(today);
-              d.setDate(d.getDate() - i);
-              dates.push(Utils.formatDate(d).full);
-            }
-            break;
-          case 'month':
-            dates = [];
-            for (let i = 29; i >= 0; i--) {
-              const d = new Date(today);
-              d.setDate(d.getDate() - i);
-              dates.push(Utils.formatDate(d).full);
-            }
-            break;
-        }
-        
-        AppState.statsDates = dates;
-        renderStatsWithDates(dates);
-      }
-    });
-  });
-}
-
-// Statistics
-let habitChart, dietChart, todoChart, moodChart;
-
-function getWeekDates() {
-  const dates = [];
-  const today = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(Utils.formatDate(d).full);
-  }
-  return dates;
-}
-
-function getMonthDates() {
-  const dates = [];
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  
-  for (let day = 1; day <= daysInMonth; day++) {
-    dates.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
-  }
-  return dates;
-}
-
-function getCustomDates() {
-  const startDate = document.getElementById('statsStartDate')?.value;
-  const endDate = document.getElementById('statsEndDate')?.value;
-  
-  if (!startDate || !endDate) return getWeekDates();
-  
-  const dates = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    dates.push(Utils.formatDate(d).full);
-  }
-  return dates;
-}
-
-function renderStats() {
-  // Check if we have pre-selected dates from quick buttons
-  if (AppState.statsDates && AppState.statsDates.length > 0) {
-    renderStatsWithDates(AppState.statsDates);
-    return;
-  }
-  
-  const activeRange = document.querySelector('.stats-quick-btn.active')?.dataset.range || 'week';
-  let dates;
-  
-  if (activeRange === 'today') {
-    dates = [Utils.formatDate(new Date()).full];
-  } else if (activeRange === 'yesterday') {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    dates = [Utils.formatDate(yesterday).full];
-  } else if (activeRange === 'week' || activeRange === 'custom') {
-    dates = getWeekDates();
-  } else if (activeRange === 'month') {
-    dates = getMonthDates();
-  } else {
-    dates = getWeekDates();
-  }
-  
-  renderHabitStats(dates);
-  renderDietStats(dates);
-  renderTodoStats(dates);
-  renderMoodStats(dates);
-}
-
-function renderStatsWithDates(dates) {
-  renderHabitStats(dates);
-  renderDietStats(dates);
-  renderTodoStats(dates);
-  renderMoodStats(dates);
-}
-
-function renderHabitStats(dates) {
-  if (!AppState.habits.length) {
-    document.getElementById('habitRate').textContent = '0%';
-    document.getElementById('habitStreak').textContent = '0 天';
-    if (habitChart) habitChart.destroy();
-    return;
-  }
-  
-  let totalChecks = 0, totalPossible = AppState.habits.length * dates.length;
-  let maxStreak = 0;
-  
-  AppState.habits.forEach(h => {
-    let streak = h.streak || 0;
-    maxStreak = Math.max(maxStreak, streak);
-    dates.forEach(date => {
-      if ((h.checkIns || []).includes(date)) totalChecks++;
-    });
-  });
-  
-  const rate = totalPossible > 0 ? Math.round((totalChecks / totalPossible) * 100) : 0;
-  document.getElementById('habitRate').textContent = rate + '%';
-  document.getElementById('habitStreak').textContent = maxStreak + ' 天';
-  
-  const ctx = document.getElementById('habitChart');
-  if (!ctx) return;
-  
-  const data = dates.map(date => AppState.habits.filter(h => (h.checkIns || []).includes(date)).length);
-  
-  if (habitChart) habitChart.destroy();
-  habitChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: dates.map(d => d.slice(5)), datasets: [{ data: data, backgroundColor: '#3b82f6', borderRadius: 4 }] },
-    options: { 
-      responsive: true, 
-      maintainAspectRatio: false, 
-      plugins: { 
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: function(context) {
-              const index = context[0].dataIndex;
-              return dates[index];
-            }
-          }
-        }
-      }, 
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-      onClick: (e, elements) => {
-        if (elements.length > 0) {
-          const index = elements[0].index;
-          const selectedDate = dates[index];
-          jumpToDate(selectedDate);
-        }
-      }
-    }
-  });
-  
-  // Store dates for click handler reference
-  habitChart._statsDates = dates;
-}
-
-// Jump to specific date in today view
-function jumpToDate(date) {
-  // Switch to today page
-  showPage('today');
-  
-  // Update current date display
-  const d = new Date(date);
-  AppState.currentDate = d;
-  
-  // Update date display
-  const formatted = Utils.formatDate(d);
-  document.getElementById('currentDate').textContent = `${formatted.month}${formatted.date}日`;
-  document.getElementById('currentWeekday').textContent = formatted.weekday;
-  
-  // Update today date picker if exists
-  const datePicker = document.getElementById('todayDatePicker');
-  if (datePicker) datePicker.value = formatted.full;
-  
-  // Re-render with new date
-  renderOverview();
-  renderReview();
-  
-  // Show a toast or highlight
-  alert(`已切换到 ${formatted.full}，点击下方按钮编辑数据`);
-}
-
-// Switch to specific date on today page
-function switchToDate(date) {
-  // Update current date
-  const d = new Date(date);
-  AppState.currentDate = d;
-  
-  // Update date display
-  const formatted = Utils.formatDate(d);
-  document.getElementById('currentDate').textContent = `${formatted.month}${formatted.date}日`;
-  document.getElementById('currentWeekday').textContent = formatted.weekday;
-  
-  // Update date picker
-  const datePicker = document.getElementById('todayDatePicker');
-  if (datePicker) datePicker.value = formatted.full;
-  
-  // Re-render with new date
-  renderOverview();
-  renderReview();
-}
-
-function renderDietStats(dates) {
-  let totalCal = 0, days = 0;
-  const mealData = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
-  
-  dates.forEach(date => {
-    const diet = AppState.diets.find(d => d.date === date);
-    if (diet) {
-      const dayCal = (diet.breakfastCal || 0) + (diet.lunchCal || 0) + (diet.dinnerCal || 0) + (diet.snackCal || 0);
-      if (dayCal > 0) {
-        totalCal += dayCal; days++;
-        mealData.breakfast += diet.breakfastCal || 0;
-        mealData.lunch += diet.lunchCal || 0;
-        mealData.dinner += diet.dinnerCal || 0;
-        mealData.snack += diet.snackCal || 0;
-      }
-    }
-  });
-  
-  document.getElementById('avgCalories').textContent = (days > 0 ? Math.round(totalCal / days) : 0) + ' 千卡';
-  document.getElementById('dietDays').textContent = days + ' 天';
-  
-  const ctx = document.getElementById('dietChart');
-  if (!ctx) return;
-  
-  if (dietChart) dietChart.destroy();
-  dietChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels: ['早餐', '午餐', '晚餐', '加餐'], datasets: [{ data: [mealData.breakfast, mealData.lunch, mealData.dinner, mealData.snack], backgroundColor: ['#fbbf24', '#3b82f6', '#8b5cf6', '#f472b6'] }] },
-    options: { 
-      responsive: true, 
-      maintainAspectRatio: false, 
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
-      onClick: () => {
-        // Show a prompt to select which date to view
-        if (dates.length === 1) {
-          jumpToDate(dates[0]);
-        } else {
-          const dateList = dates.map((d, i) => `${i + 1}. ${d}`).join('\n');
-          const choice = prompt(`选择要查看的日期（输入 1-${dates.length}）：\n${dateList}`);
-          const index = parseInt(choice) - 1;
-          if (index >= 0 && index < dates.length) {
-            jumpToDate(dates[index]);
-          }
-        }
-      }
-    }
-  });
-}
-
-function renderTodoStats(dates) {
-  let completed = 0, total = 0;
-  AppState.todos.forEach(t => { if (dates.includes(t.date)) { total++; if (t.completed) completed++; } });
-  
-  document.getElementById('todoRate').textContent = (total > 0 ? Math.round((completed / total) * 100) : 0) + '%';
-  document.getElementById('todoCompleted').textContent = completed + ' 个';
-  
-  const ctx = document.getElementById('todoChart');
-  if (!ctx) return;
-  
-  if (todoChart) todoChart.destroy();
-  todoChart = new Chart(ctx, {
-    type: 'pie',
-    data: { labels: ['已完成', '未完成'], datasets: [{ data: [completed, total - completed], backgroundColor: ['#10b981', '#e5e7eb'] }] },
-    options: { 
-      responsive: true, 
-      maintainAspectRatio: false, 
-      plugins: { legend: { position: 'bottom' } },
-      onClick: () => {
-        // Show a prompt to select which date to view
-        if (dates.length === 1) {
-          jumpToDate(dates[0]);
-        } else {
-          const dateList = dates.map((d, i) => `${i + 1}. ${d}`).join('\n');
-          const choice = prompt(`选择要查看的日期（输入 1-${dates.length}）：\n${dateList}`);
-          const index = parseInt(choice) - 1;
-          if (index >= 0 && index < dates.length) {
-            jumpToDate(dates[index]);
-          }
-        }
-      }
-    }
-  });
-}
-
-function renderMoodStats(dates) {
-  const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  let totalMood = 0, count = 0;
-  
-  // Filter diaries by date range if provided
-  const filteredDiaries = dates 
-    ? AppState.diaries.filter(d => dates.includes(d.date))
-    : AppState.diaries;
-  
-  filteredDiaries.forEach(d => { 
-    if (d.mood) { 
-      moodCounts[d.mood]++; 
-      totalMood += d.mood; 
-      count++; 
-    } 
-  });
-  
-  document.getElementById('avgMood').textContent = Utils.getMoodEmoji(count > 0 ? Math.round(totalMood / count) : 3);
-  document.getElementById('diaryCount').textContent = filteredDiaries.length + ' 篇';
-  
-  const ctx = document.getElementById('moodChart');
-  if (!ctx) return;
-  
-  if (moodChart) moodChart.destroy();
-  moodChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: ['😫', '😔', '😐', '😊', '😄'], datasets: [{ data: [moodCounts[1], moodCounts[2], moodCounts[3], moodCounts[4], moodCounts[5]], backgroundColor: ['#ef4444', '#f97316', '#94a3b8', '#3b82f6', '#10b981'], borderRadius: 4 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-  });
-}
-
-function renderTodos() {
-  const container = document.getElementById('todoList');
-  const date = document.getElementById('todoDate')?.value || Utils.formatDate(new Date()).full;
-  const todos = AppState.todos.filter(t => t.date === date);
-  if (!todos.length) { container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">暂无待办</p>'; return; }
-  container.innerHTML = todos.map(t => `
-    <div class="todo-item ${t.completed?'completed':''}" data-id="${t.id}">
-      <input type="checkbox" class="todo-checkbox" ${t.completed?'checked':''}>
-      <span class="todo-text">${t.text}</span>
-      <button class="todo-delete"><i class="fas fa-trash"></i></button>
-    </div>
-  `).join('');
-  container.querySelectorAll('.todo-checkbox').forEach(cb => cb.addEventListener('change', e => toggleTodo(e.target.closest('.todo-item').dataset.id)));
-  container.querySelectorAll('.todo-delete').forEach(btn => btn.addEventListener('click', e => deleteTodo(e.target.closest('.todo-item').dataset.id)));
-}
-
-function addTodo(text) {
-  if (!text.trim()) return;
-  const todo = Utils.addTimestamps({
-    id: Utils.generateId(),
-    text: text.trim(),
-    date: document.getElementById('todoDate')?.value || Utils.formatDate(new Date()).full,
-    completed: false
-  });
-  AppState.todos.unshift(todo); saveData(); renderTodos(); renderOverview(); renderReview();
+    const todo = {
+        id: generateId(),
+        text: text,
+        date: formatDate(currentDate).full,
+        completed: false,
+        created_at: Date.now()
+    };
+    
+    todos.unshift(todo);
+    Storage.set('todos', todos);
+    input.value = '';
+    renderAll();
 }
 
 function toggleTodo(id) {
-  const todo = AppState.todos.find(t => t.id === id);
-  if (todo) {
-    todo.completed = !todo.completed;
-    todo.updated_at = Date.now();  // Update timestamp
-    saveData(); renderTodos(); renderOverview(); renderReview();
-  }
+    const todo = todos.find(t => t.id === id);
+    if (todo) {
+        todo.completed = !todo.completed;
+        Storage.set('todos', todos);
+        renderAll();
+    }
 }
 
 function deleteTodo(id) {
-  AppState.todos = AppState.todos.filter(t => t.id !== id);
-  saveData(); renderTodos(); renderOverview(); renderReview();
+    todos = todos.filter(t => t.id !== id);
+    Storage.set('todos', todos);
+    renderAll();
 }
 
-function renderHabits() {
-  const container = document.getElementById('habitList');
-  const date = document.getElementById('habitDate')?.value || Utils.formatDate(new Date()).full;
-  if (!AppState.habits.length) { container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">还没有习惯</p>'; return; }
-  container.innerHTML = AppState.habits.map(h => {
-    const checked = (h.checkIns||[]).includes(date);
-    return `
-      <div class="habit-item" data-id="${h.id}">
-        <div class="habit-info"><span class="habit-icon">${h.icon||'✨'}</span><div><span class="habit-name">${h.name}</span><span class="habit-streak">🔥 连续 ${h.streak||0} 天</span></div></div>
-        <button class="habit-check ${checked?'checked':''}">${checked?'✓':'○'}</button>
-      </div>
-    `;
-  }).join('');
-  container.querySelectorAll('.habit-check').forEach(btn => btn.addEventListener('click', e => checkHabit(e.target.closest('.habit-item').dataset.id)));
-}
-
-function addHabit(name, icon) {
-  if (!name.trim()) return;
-  AppState.habits.push({ id: Utils.generateId(), name: name.trim(), icon: icon||'✨', checkIns: [], streak: 0 });
-  saveData(); renderHabits(); renderOverview(); renderReview();
-}
-
-function checkHabit(id) {
-  const habit = AppState.habits.find(h => h.id === id);
-  if (!habit) return;
-  const date = document.getElementById('habitDate')?.value || Utils.formatDate(new Date()).full;
-  const idx = (habit.checkIns||[]).indexOf(date);
-  if (idx === -1) { habit.checkIns.push(date); habit.streak = (habit.streak||0)+1; }
-  else { habit.checkIns.splice(idx,1); habit.streak = Math.max(0,(habit.streak||0)-1); }
-  saveData(); renderHabits(); renderOverview(); renderReview();
-}
-
-// Load diet for a specific date
-function loadDiet() {
-  const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
-  
-  // Find diet record for this date
-  const diet = AppState.diets.find(d => d.date === date);
-  
-  const set = (id, val) => { 
-    const el = document.getElementById(id); 
-    if (el) el.value = val; 
-  };
-  
-  if (diet) {
-    set('breakfastInput', diet.breakfast || '');
-    set('breakfastCal', diet.breakfastCal || '');
-    set('lunchInput', diet.lunch || '');
-    set('lunchCal', diet.lunchCal || '');
-    set('dinnerInput', diet.dinner || '');
-    set('dinnerCal', dinnerCal || '');
-    set('snackInput', diet.snack || '');
-    set('snackCal', diet.snackCal || '');
-  } else {
-    // Clear fields if no record
-    set('breakfastInput', ''); set('breakfastCal', '');
-    set('lunchInput', ''); set('lunchCal', '');
-    set('dinnerInput', ''); set('dinnerCal', '');
-    set('snackInput', ''); set('snackCal', '');
-  }
-  
-  updateTotalCal();
-}
-
-function updateTotalCal() {
-  const get = id => parseInt(document.getElementById(id)?.value) || 0;
-  document.getElementById('totalCalories').textContent = get('breakfastCal')+get('lunchCal')+get('dinnerCal')+get('snackCal');
-}
-
-// Save diet - same pattern as addTodo
-async function saveDiet() {
-  const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
-  
-  const getVal = id => document.getElementById(id)?.value?.trim() || '';
-  const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
-  
-  // Check if record already exists for this date
-  const existingIndex = AppState.diets.findIndex(d => d.date === date);
-  
-  const now = Date.now();
-  const dietData = {
-    id: existingIndex >= 0 ? AppState.diets[existingIndex].id : Utils.generateId(),
-    date: date,
-    breakfast: getVal('breakfastInput'),
-    breakfastCal: getNum('breakfastCal'),
-    lunch: getVal('lunchInput'),
-    lunchCal: getNum('lunchCal'),
-    dinner: getVal('dinnerInput'),
-    dinnerCal: getNum('dinnerCal'),
-    snack: getVal('snackInput'),
-    snackCal: getNum('snackCal'),
-    created_at: existingIndex >= 0 ? AppState.diets[existingIndex].created_at : now,
-    updated_at: now  // Always update timestamp
-  };
-  
-  if (existingIndex >= 0) {
-    AppState.diets[existingIndex] = dietData;  // Update existing
-  } else {
-    AppState.diets.unshift(dietData);  // Add new
-  }
-  
-  // Save to local and cloud
-  await saveData();
-  
-  document.getElementById('dietModal').classList.remove('active');
-  renderOverview();
-  renderReview();
-  alert('饮食记录已保存并上传到云端！');
-}
-
-function renderDiaryList() {
-  const container = document.getElementById('diaryList');
-  if (!AppState.diaries.length) { container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">还没有日记</p>'; return; }
-  container.innerHTML = AppState.diaries.map(d => {
-    const date = Utils.formatDate(d.date);
-    return `
-      <div class="diary-item" data-id="${d.id}">
-        <div class="diary-header-small"><span class="diary-date">${date.full}</span><span class="diary-mood">${Utils.getMoodEmoji(d.mood)}</span></div>
-        <h4 class="diary-title">${d.title}</h4><p class="diary-preview">${d.content?.substring(0,100)||''}${d.content?.length>100?'...':''}</p>
-      </div>
-    `;
-  }).join('');
-  container.querySelectorAll('.diary-item').forEach(item => item.addEventListener('click', () => viewDiary(item.dataset.id)));
-}
-
-function viewDiary(id) {
-  const d = AppState.diaries.find(x => x.id === id);
-  if (!d) return;
-  AppState.currentDiaryId = id;
-  document.getElementById('viewDiaryTitle').textContent = d.title;
-  document.getElementById('viewDiaryDate').textContent = Utils.formatDate(d.date).full;
-  document.getElementById('viewDiaryMood').textContent = Utils.getMoodEmoji(d.mood);
-  document.getElementById('viewDiaryText').textContent = d.content || '';
-  document.getElementById('viewDiaryModal').classList.add('active');
-}
-
-function editDiary() {
-  const d = AppState.diaries.find(x => x.id === AppState.currentDiaryId);
-  if (!d) return;
-  document.getElementById('viewDiaryModal').classList.remove('active');
-  document.getElementById('diaryModal').classList.add('active');
-  document.getElementById('diaryDate').value = d.date;
-  document.getElementById('diaryTitle').value = d.title;
-  document.getElementById('diaryContent').value = d.content || '';
-  AppState.selectedDiaryMood = d.mood || 3;
-  document.querySelectorAll('.diary-mood-btn').forEach(b => {
-    b.classList.remove('active');
-    if (parseInt(b.dataset.mood) === AppState.selectedDiaryMood) b.classList.add('active');
-  });
-}
-
-function deleteDiary() {
-  if (!AppState.currentDiaryId) return;
-  if (confirm('确定要删除这篇日记吗？')) {
-    AppState.diaries = AppState.diaries.filter(d => d.id !== AppState.currentDiaryId);
-    saveData();
-    document.getElementById('viewDiaryModal').classList.remove('active');
-    if (AppState.currentPage === 'diary') renderDiaryList();
-    renderOverview(); renderReview();
-    alert('日记已删除');
-  }
-}
-
-function saveDiary() {
-  const title = document.getElementById('diaryTitle')?.value?.trim();
-  const content = document.getElementById('diaryContent')?.value?.trim();
-  const date = document.getElementById('diaryDate')?.value || Utils.formatDate(new Date()).full;
-  if (!title && !content) { alert('请填写标题或内容'); return; }
-  
-  if (AppState.currentDiaryId) {
-    // 更新现有日记
-    const index = AppState.diaries.findIndex(d => d.id === AppState.currentDiaryId);
-    if (index !== -1) {
-      AppState.diaries[index] = {
-        ...AppState.diaries[index],
-        title: title || '无标题',
-        content: content || '',
-        date,
-        mood: AppState.selectedDiaryMood || 3,
-        updated_at: new Date().toISOString()
-      };
-      AppState.currentDiaryId = null;
-    }
-  } else {
-    // 新建日记
-    const diary = { id: Utils.generateId(), title: title || '无标题', content: content || '', date, mood: AppState.selectedDiaryMood || 3, created_at: new Date().toISOString() };
-    AppState.diaries.unshift(diary);
-  }
-  
-  saveData();
-  document.getElementById('diaryModal').classList.remove('active');
-  document.getElementById('diaryTitle').value = '';
-  document.getElementById('diaryContent').value = '';
-  if (AppState.currentPage === 'diary') renderDiaryList();
-  renderOverview(); renderReview();
-  alert(AppState.currentDiaryId ? '日记更新成功！' : '日记保存成功！');
-}
-
-function renderCalendar() {
-  const grid = document.getElementById('calendarGrid');
-  const title = document.getElementById('calendarTitle');
-  const date = AppState.currentDate;
-  const year = date.getFullYear(), month = date.getMonth();
-  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-  title.textContent = `${year}年 ${months[month]}`;
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  let html = '';
-  ['日','一','二','三','四','五','六'].forEach(d => html += `<div class="calendar-weekday">${d}</div>`);
-  for (let i=0; i<firstDay; i++) html += `<div class="calendar-day empty"></div>`;
-  const today = Utils.formatDate(new Date()).full;
-  for (let day=1; day<=daysInMonth; day++) {
-    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const isToday = dateStr === today;
-    const hasEvent = AppState.events.some(e => e.date === dateStr) || AppState.diaries.some(d => d.date === dateStr);
-    html += `<div class="calendar-day ${isToday?'today':''} ${hasEvent?'has-event':''}" data-date="${dateStr}">${day}</div>`;
-  }
-  grid.innerHTML = html;
-  grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => el.addEventListener('click', () => { document.getElementById('calendarDatePicker').value = el.dataset.date; renderDayEvents(); }));
-}
-
-function renderDayEvents() {
-  const container = document.getElementById('eventListCalendar');
-  const title = document.getElementById('selectedDateTitle');
-  const date = document.getElementById('calendarDatePicker')?.value || Utils.formatDate(new Date()).full;
-  title.textContent = date;
-  const events = AppState.events.filter(e => e.date === date);
-  const diary = AppState.diaries.find(d => d.date === date);
-  let html = '';
-  if (events.length) { html += `<div><h4>📅 行程 (${events.length})</h4><ul>`; html += events.map(e => `<li>${e.time||'全天'} - ${e.title}</li>`).join(''); html += '</ul></div>'; }
-  if (diary) { html += `<div><h4>📖 日记</h4><p><strong>${diary.title}</strong></p></div>`; }
-  container.innerHTML = html || '<p style="text-align:center;color:#94a3b8;">这一天还没有记录</p>';
-}
-
-function saveEvent() {
-  const title = document.getElementById('newEventTitle')?.value?.trim();
-  const date = document.getElementById('newEventDate')?.value;
-  const time = document.getElementById('newEventTime')?.value;
-  if (!title) { alert('请输入行程标题'); return; }
-  AppState.events.push({ id: Utils.generateId(), title, date: date||Utils.formatDate(new Date()).full, time: time||'', type: document.getElementById('newEventType')?.value||'other', created_at: new Date().toISOString() });
-  saveData(); document.getElementById('addEventModal').classList.remove('active'); document.getElementById('newEventTitle').value = '';
-  renderDayEvents(); renderCalendar(); renderOverview(); renderReview(); alert('行程添加成功！');
-}
-
-function exportData() {
-  const data = { ...AppState, exportDate: new Date().toISOString(), version: '1.0' };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `dayflow-backup-${Utils.formatDate(new Date()).full}.json`; a.click(); URL.revokeObjectURL(url);
-  alert('数据已导出！');
-}
-
-function importData(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = event => {
-    try {
-      const data = JSON.parse(event.target.result);
-      if (confirm('确定导入？这将覆盖当前数据')) {
-        AppState.todos = data.todos || []; AppState.habits = data.habits || []; AppState.diets = data.diets || data.diet || [];
-        AppState.events = data.events || []; AppState.diaries = data.diaries || [];
-        saveData(); location.reload();
-      }
-    } catch(err) { alert('导入失败：文件格式错误'); }
-  };
-  reader.readAsText(file); e.target.value = '';
-}
-
-async function clearData() {
-  if (confirm('警告：这将删除所有数据！') && confirm('再次确认：无法恢复！')) {
-    // Clear cloud data first
-    if (AppState.currentUser && supabaseClient) {
-      const userId = AppState.currentUser.id;
-      console.log('🗑️ Clearing cloud data...');
-      await supabaseClient.from('todos').delete().eq('user_id', userId);
-      await supabaseClient.from('habits').delete().eq('user_id', userId);
-      await supabaseClient.from('diaries').delete().eq('user_id', userId);
-      await supabaseClient.from('diets').delete().eq('user_id', userId);
-      await supabaseClient.from('events').delete().eq('user_id', userId);
-      console.log('✅ Cloud data cleared');
+function renderTodoList(todayTodos) {
+    // Preview list
+    const previewList = document.getElementById('todoList');
+    if (previewList) {
+        previewList.innerHTML = todayTodos.slice(0, 3).map(todo => `
+            <div class="todo-item" onclick="toggleTodo('${todo.id}')">
+                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''}>
+                <span class="todo-text ${todo.completed ? 'todo-completed' : ''}">${todo.text}</span>
+            </div>
+        `).join('');
     }
     
-    // Clear local data
-    localStorage.removeItem('dayflow_todos');
-    localStorage.removeItem('dayflow_habits');
-    localStorage.removeItem('dayflow_diets');
-    localStorage.removeItem('dayflow_diet');
-    localStorage.removeItem('dayflow_events');
-    localStorage.removeItem('dayflow_diaries');
-    
-    AppState.todos = []; AppState.habits = []; AppState.diets = []; AppState.events = []; AppState.diaries = [];
-    alert('✅ 所有数据已清除！请刷新页面。');
-    location.reload();
-  }
-}
-
-// Pomodoro
-let timerInterval = null, timeLeft = 25*60, duration = 25, running = false;
-function updateTimer() {
-  const m = Math.floor(timeLeft/60), s = timeLeft%60;
-  document.getElementById('timerMinutes').textContent = String(m).padStart(2,'0');
-  document.getElementById('timerSeconds').textContent = String(s).padStart(2,'0');
-}
-function toggleTimer() {
-  const btn = document.getElementById('timerToggle');
-  if (running) { clearInterval(timerInterval); running = false; btn.innerHTML = '<i class="fas fa-play"></i> 开始'; }
-  else { running = true; btn.innerHTML = '<i class="fas fa-pause"></i> 暂停'; timerInterval = setInterval(() => { timeLeft--; updateTimer(); if (timeLeft <= 0) { clearInterval(timerInterval); running = false; alert('番茄钟完成！'); btn.innerHTML = '<i class="fas fa-play"></i> 开始'; } }, 1000); }
-}
-function resetTimer() { clearInterval(timerInterval); running = false; timeLeft = duration*60; updateTimer(); document.getElementById('timerToggle').innerHTML = '<i class="fas fa-play"></i> 开始'; }
-
-// Event Listeners
-document.addEventListener('DOMContentLoaded', async () => {
-  // CRITICAL: Load local data FIRST for fast display
-  loadData();
-  initToday();
-  
-  // Then init Supabase - if logged in, will download from cloud and overwrite local
-  await initSupabase();
-  
-  // Navigation
-  document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
-  
-  // Today page date selector
-  const todayDatePicker = document.getElementById('todayDatePicker');
-  if (todayDatePicker) {
-    todayDatePicker.value = Utils.formatDate(new Date()).full;
-    
-    todayDatePicker.addEventListener('change', () => {
-      const selectedDate = todayDatePicker.value;
-      if (selectedDate) {
-        switchToDate(selectedDate);
-      }
-    });
-  }
-  
-  document.getElementById('todayGoToDate')?.addEventListener('click', () => {
-    const selectedDate = document.getElementById('todayDatePicker')?.value;
-    if (selectedDate) {
-      switchToDate(selectedDate);
+    // Modal list
+    const modalList = document.getElementById('todoModalList');
+    if (modalList) {
+        modalList.innerHTML = todayTodos.map(todo => `
+            <div class="todo-item">
+                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} 
+                       onclick="toggleTodo('${todo.id}')">
+                <span class="todo-text ${todo.completed ? 'todo-completed' : ''}">${todo.text}</span>
+                <span class="todo-delete" onclick="deleteTodo('${todo.id}')">
+                    <i class="fas fa-trash"></i>
+                </span>
+            </div>
+        `).join('');
     }
-  });
-  
-  // Today page quick date buttons
-  document.querySelectorAll('.today-quick-date').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const offset = parseInt(btn.dataset.offset);
-      const date = new Date();
-      date.setDate(date.getDate() + offset);
-      const dateStr = Utils.formatDate(date).full;
-      
-      // Update date picker
-      const picker = document.getElementById('todayDatePicker');
-      if (picker) picker.value = dateStr;
-      
-      // Switch to that date
-      switchToDate(dateStr);
-    });
-  });
-  
-  // Quick actions
-  document.getElementById('todoBtn')?.addEventListener('click', () => { 
-    document.getElementById('todoModal').classList.add('active'); 
-    document.getElementById('todoDate').value = Utils.formatDate(AppState.currentDate).full; 
-    renderTodos(); 
-  });
-  document.getElementById('habitBtn')?.addEventListener('click', () => { 
-    document.getElementById('habitModal').classList.add('active'); 
-    document.getElementById('habitDate').value = Utils.formatDate(AppState.currentDate).full; 
-    renderHabits(); 
-  });
-  document.getElementById('dietBtn')?.addEventListener('click', () => { 
-    document.getElementById('dietModal').classList.add('active'); 
-    document.getElementById('dietDate').value = Utils.formatDate(AppState.currentDate).full; 
-    loadDiet(); 
-  });
-  document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
-  
-  // Close modals
-  document.getElementById('closeTodo')?.addEventListener('click', () => document.getElementById('todoModal').classList.remove('active'));
-  document.getElementById('closeHabit')?.addEventListener('click', () => document.getElementById('habitModal').classList.remove('active'));
-  document.getElementById('closeDiet')?.addEventListener('click', () => document.getElementById('dietModal').classList.remove('active'));
-  document.getElementById('closePomodoro')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.remove('active'));
-  document.getElementById('closeDiaryModal')?.addEventListener('click', () => document.getElementById('diaryModal').classList.remove('active'));
-  document.getElementById('closeViewDiary')?.addEventListener('click', () => { document.getElementById('viewDiaryModal').classList.remove('active'); AppState.currentDiaryId = null; });
-  document.getElementById('editDiaryBtn')?.addEventListener('click', editDiary);
-  document.getElementById('deleteDiaryBtn')?.addEventListener('click', deleteDiary);
-  document.getElementById('closeAddEvent')?.addEventListener('click', () => document.getElementById('addEventModal').classList.remove('active'));
-  document.getElementById('closeSettings')?.addEventListener('click', () => document.getElementById('settingsModal').classList.remove('active'));
-  
-  // Actions
-  document.getElementById('addTodoBtn')?.addEventListener('click', () => { addTodo(document.getElementById('todoInput').value); document.getElementById('todoInput').value = ''; });
-  document.getElementById('addHabitBtn')?.addEventListener('click', () => { addHabit(document.getElementById('habitInput').value, document.getElementById('habitIcon').value); document.getElementById('habitInput').value = ''; });
-  document.getElementById('saveDiet')?.addEventListener('click', () => saveDiet());
-  document.getElementById('addDiaryBtn')?.addEventListener('click', () => { AppState.currentDiaryId = null; document.getElementById('diaryModal').classList.add('active'); document.getElementById('diaryDate').value = Utils.formatDate(new Date()).full; document.getElementById('diaryTitle').value = ''; document.getElementById('diaryContent').value = ''; });
-  document.getElementById('saveDiaryBtn')?.addEventListener('click', saveDiary);
-  document.getElementById('addEventFromCalendar')?.addEventListener('click', () => { document.getElementById('addEventModal').classList.add('active'); document.getElementById('newEventDate').value = document.getElementById('calendarDatePicker').value || Utils.formatDate(new Date()).full; });
-  document.getElementById('saveNewEvent')?.addEventListener('click', saveEvent);
-  document.getElementById('settingsBtn')?.addEventListener('click', () => document.getElementById('settingsModal').classList.add('active'));
-  
-  // Calendar
-  document.getElementById('prevMonth')?.addEventListener('click', () => { AppState.currentDate.setMonth(AppState.currentDate.getMonth()-1); renderCalendar(); });
-  document.getElementById('nextMonth')?.addEventListener('click', () => { AppState.currentDate.setMonth(AppState.currentDate.getMonth()+1); renderCalendar(); });
-  
-  // Settings
-  document.getElementById('exportData')?.addEventListener('click', exportData);
-  document.getElementById('importData')?.addEventListener('click', () => document.getElementById('importFile').click());
-  document.getElementById('importFile')?.addEventListener('change', importData);
-  document.getElementById('clearData')?.addEventListener('click', () => clearData());
-  
-  // Diary mood
-  document.querySelectorAll('.diary-mood-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.diary-mood-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); AppState.selectedDiaryMood = parseInt(btn.dataset.mood); }));
-  
-  // Pomodoro
-  document.getElementById('timerToggle')?.addEventListener('click', toggleTimer);
-  document.getElementById('timerReset')?.addEventListener('click', resetTimer);
-  document.querySelectorAll('.duration-btn').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); duration = parseInt(btn.dataset.duration); resetTimer(); }));
-  
-  // Overview clicks
-  document.getElementById('overviewTodos')?.addEventListener('click', () => document.getElementById('todoBtn').click());
-  document.getElementById('overviewHabits')?.addEventListener('click', () => document.getElementById('habitBtn').click());
-  document.getElementById('overviewDiet')?.addEventListener('click', () => document.getElementById('dietBtn').click());
-  document.getElementById('overviewEvents')?.addEventListener('click', () => showPage('calendar'));
-  
-  // Diet calories
-  ['breakfastCal','lunchCal','dinnerCal','snackCal'].forEach(id => document.getElementById(id)?.addEventListener('input', updateTotalCal));
-  
-  // Date changes
-  document.getElementById('todoDate')?.addEventListener('change', renderTodos);
-  document.getElementById('habitDate')?.addEventListener('change', renderHabits);
-  document.getElementById('dietDate')?.addEventListener('change', loadDiet);
-  
-  // Quick date buttons for todos, habits, diet
-  document.querySelectorAll('.quick-date-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetId = btn.dataset.target;
-      const offset = parseInt(btn.dataset.offset);
-      const targetInput = document.getElementById(targetId);
-      
-      if (targetInput) {
-        const date = new Date();
-        date.setDate(date.getDate() + offset);
-        targetInput.value = Utils.formatDate(date).full;
-        
-        // Trigger change event to reload data
-        targetInput.dispatchEvent(new Event('change'));
-      }
-    });
-  });
+}
 
-  // Stats quick date buttons
-  document.querySelectorAll('.stats-quick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.stats-quick-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      const range = btn.dataset.range;
-      const datePicker = document.getElementById('statsDatePicker');
-      const customBtn = document.querySelector('.stats-quick-btn[data-range="custom"]');
-      
-      if (range === 'custom') {
-        datePicker.style.display = 'block';
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - 6);
-        document.getElementById('statsEndDate').value = Utils.formatDate(end).full;
-        document.getElementById('statsStartDate').value = Utils.formatDate(start).full;
-      } else {
-        datePicker.style.display = 'none';
-        
-        // Calculate dates based on selection
-        let dates;
-        const today = new Date();
-        
-        switch(range) {
-          case 'today':
-            dates = [Utils.formatDate(today).full];
-            break;
-          case 'yesterday':
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            dates = [Utils.formatDate(yesterday).full];
-            break;
-          case 'week':
-            dates = [];
-            for (let i = 6; i >= 0; i--) {
-              const d = new Date(today);
-              d.setDate(d.getDate() - i);
-              dates.push(Utils.formatDate(d).full);
-            }
-            break;
-          case 'month':
-            dates = [];
-            for (let i = 29; i >= 0; i--) {
-              const d = new Date(today);
-              d.setDate(d.getDate() - i);
-              dates.push(Utils.formatDate(d).full);
-            }
-            break;
+// Habit Functions
+function addHabit() {
+    const input = document.getElementById('habitInput');
+    const name = input.value.trim();
+    if (!name) return;
+    
+    const habit = {
+        id: generateId(),
+        name: name,
+        icon: '✅',
+        checkIns: [],
+        created_at: Date.now()
+    };
+    
+    habits.unshift(habit);
+    Storage.set('habits', habits);
+    input.value = '';
+    renderAll();
+}
+
+function toggleHabit(id) {
+    const habit = habits.find(h => h.id === id);
+    if (habit) {
+        const dateStr = formatDate(currentDate).full;
+        const index = habit.checkIns.indexOf(dateStr);
+        if (index >= 0) {
+            habit.checkIns.splice(index, 1);
+        } else {
+            habit.checkIns.push(dateStr);
         }
-        
-        // Store selected dates and render
-        AppState.statsDates = dates;
-        renderStatsWithDates(dates);
-      }
-    });
-  });
-  
-  // Apply custom date range
-  document.getElementById('applyStatsDate')?.addEventListener('click', () => {
-    const startDate = document.getElementById('statsStartDate').value;
-    const endDate = document.getElementById('statsEndDate').value;
-    
-    if (startDate && endDate) {
-      const dates = [];
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        dates.push(Utils.formatDate(d).full);
-      }
-      
-      AppState.statsDates = dates;
-      renderStatsWithDates(dates);
+        Storage.set('habits', habits);
+        renderAll();
     }
-  });
-  
-  // Stats period selector (legacy, keep for compatibility)
-  document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    renderStats();
-  }));
-  
-  // Auth event listeners
-  document.getElementById('loginTab')?.addEventListener('click', switchToLogin);
-  document.getElementById('registerTab')?.addEventListener('click', switchToRegister);
-  document.getElementById('doLogin')?.addEventListener('click', () => {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    if (email && password) login(email, password);
-    else alert('请输入邮箱和密码');
-  });
-  document.getElementById('doRegister')?.addEventListener('click', () => {
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    const confirm = document.getElementById('confirmPassword').value;
-    if (!email || !password) { alert('请输入邮箱和密码'); return; }
-    if (password !== confirm) { alert('两次密码不一致'); return; }
-    if (password.length < 6) { alert('密码至少6位'); return; }
-    register(email, password);
-  });
-  document.getElementById('logoutBtn')?.addEventListener('click', logout);
-  
-  // NEW: Sync button
-  document.getElementById('syncBtn')?.addEventListener('click', () => {
-    syncWithCloud();
-  });
-  
-  // Bind stats buttons immediately
-  setTimeout(bindStatsButtons, 500);
-  
-  console.log('DayFlow initialized');
+}
+
+function deleteHabit(id) {
+    habits = habits.filter(h => h.id !== id);
+    Storage.set('habits', habits);
+    renderAll();
+}
+
+function renderHabitList() {
+    const dateStr = formatDate(currentDate).full;
+    
+    // Preview
+    const previewList = document.getElementById('habitList');
+    if (previewList) {
+        previewList.innerHTML = habits.slice(0, 4).map(habit => {
+            const isChecked = habit.checkIns && habit.checkIns.includes(dateStr);
+            return `
+                <div class="habit-item ${isChecked ? 'habit-checked' : ''}" onclick="toggleHabit('${habit.id}')">
+                    <div class="habit-icon">${habit.icon}</div>
+                    <div class="habit-name">${habit.name}</div>
+                    ${isChecked ? '<div class="habit-check"><i class="fas fa-check"></i></div>' : ''}
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Modal
+    const modalList = document.getElementById('habitModalList');
+    if (modalList) {
+        modalList.innerHTML = habits.map(habit => {
+            const isChecked = habit.checkIns && habit.checkIns.includes(dateStr);
+            return `
+                <div class="todo-item">
+                    <div class="habit-item ${isChecked ? 'habit-checked' : ''}" onclick="toggleHabit('${habit.id}')">
+                        <div class="habit-icon">${habit.icon}</div>
+                        <span class="habit-name">${habit.name}</span>
+                    </div>
+                    <span class="todo-delete" onclick="deleteHabit('${habit.id}')">
+                        <i class="fas fa-trash"></i>
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+// Diet Functions
+function openDietModal() {
+    const dateStr = formatDate(currentDate).full;
+    const diet = diets.find(d => d.date === dateStr);
+    
+    if (diet) {
+        document.getElementById('breakfastInput').value = diet.breakfast || '';
+        document.getElementById('breakfastCal').value = diet.breakfastCal || '';
+        document.getElementById('lunchInput').value = diet.lunch || '';
+        document.getElementById('lunchCal').value = diet.lunchCal || '';
+        document.getElementById('dinnerInput').value = diet.dinner || '';
+        document.getElementById('dinnerCal').value = diet.dinnerCal || '';
+        document.getElementById('snackInput').value = diet.snack || '';
+        document.getElementById('snackCal').value = diet.snackCal || '';
+    }
+    
+    openModal('dietModal');
+}
+
+function saveDiet() {
+    const dateStr = formatDate(currentDate).full;
+    const existingIndex = diets.findIndex(d => d.date === dateStr);
+    
+    const dietData = {
+        id: existingIndex >= 0 ? diets[existingIndex].id : generateId(),
+        date: dateStr,
+        breakfast: document.getElementById('breakfastInput').value,
+        breakfastCal: parseInt(document.getElementById('breakfastCal').value) || 0,
+        lunch: document.getElementById('lunchInput').value,
+        lunchCal: parseInt(document.getElementById('lunchCal').value) || 0,
+        dinner: document.getElementById('dinnerInput').value,
+        dinnerCal: parseInt(document.getElementById('dinnerCal').value) || 0,
+        snack: document.getElementById('snackInput').value,
+        snackCal: parseInt(document.getElementById('snackCal').value) || 0,
+        created_at: existingIndex >= 0 ? diets[existingIndex].created_at : Date.now(),
+        updated_at: Date.now()
+    };
+    
+    if (existingIndex >= 0) {
+        diets[existingIndex] = dietData;
+    } else {
+        diets.unshift(dietData);
+    }
+    
+    Storage.set('diets', diets);
+    closeModal('dietModal');
+    renderAll();
+    alert('饮食记录已保存！');
+}
+
+// Stats
+function updateStats() {
+    // Todo rate
+    const totalTodos = todos.length;
+    const completedTodos = todos.filter(t => t.completed).length;
+    const todoRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
+    document.getElementById('statTodoRate').textContent = todoRate + '%';
+    
+    // Habit rate
+    const totalCheckIns = habits.reduce((sum, h) => sum + (h.checkIns ? h.checkIns.length : 0), 0);
+    const habitRate = habits.length > 0 ? Math.round(totalCheckIns / (habits.length * 7) * 100) : 0;
+    document.getElementById('statHabitRate').textContent = habitRate + '%';
+    
+    // Avg calories
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last7Days.push(formatDate(d).full);
+    }
+    const totalCal = last7Days.reduce((sum, date) => {
+        const diet = diets.find(d => d.date === date);
+        return sum + (diet ? 
+            (diet.breakfastCal || 0) + (diet.lunchCal || 0) + 
+            (diet.dinnerCal || 0) + (diet.snackCal || 0) : 0);
+    }, 0);
+    document.getElementById('statAvgCal').textContent = Math.round(totalCal / 7);
+    
+    // Diary count
+    document.getElementById('statDiaryCount').textContent = diaries.length;
+}
+
+// Diary
+function renderDiaryList() {
+    const list = document.getElementById('diaryList');
+    if (!list) return;
+    
+    if (diaries.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📖</div>
+                <div>还没有日记</div>
+            </div>
+        `;
+        return;
+    }
+    
+    const sorted = [...diaries].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    list.innerHTML = sorted.map(diary => {
+        const dateInfo = formatDate(diary.date);
+        const moods = ['😫','😔','😐','😊','😄'];
+        const mood = moods[(diary.mood || 3) - 1] || '😐';
+        
+        return `
+            <div class="section">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="font-weight:600;">${dateInfo.month}${dateInfo.date}日</div>
+                    <div style="font-size:24px;">${mood}</div>
+                </div>
+                <div style="font-weight:600;margin-bottom:4px;">${diary.title || '无标题'}</div>
+                <div style="color:#64748b;font-size:14px;">${diary.content || ''}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Navigation
+function showPage(page) {
+    // Hide all pages
+    document.getElementById('todayPage').style.display = 'none';
+    document.getElementById('statsPage').style.display = 'none';
+    document.getElementById('diaryPage').style.display = 'none';
+    
+    // Show selected
+    document.getElementById(page + 'Page').style.display = 'block';
+    
+    // Update nav buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.closest('.nav-btn').classList.add('active');
+}
+
+// Modal Functions
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function openTodoModal() {
+    renderTodoList(todos.filter(t => t.date === formatDate(currentDate).full));
+    openModal('todoModal');
+}
+
+function openHabitModal() {
+    renderHabitList();
+    openModal('habitModal');
+}
+
+// Close modal on background click
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
+});
+
+// Enter key support
+document.getElementById('todoInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addTodo();
+});
+
+document.getElementById('habitInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addHabit();
 });
