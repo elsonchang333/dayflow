@@ -433,9 +433,16 @@ async function saveToSupabase(table, data) {
 }
 
 function initToday() {
-  const today = Utils.formatDate(new Date());
+  // Reset to today on page load
+  AppState.currentDate = new Date();
+  const today = Utils.formatDate(AppState.currentDate);
   document.getElementById('currentDate').textContent = `${today.month}${today.date}日`;
   document.getElementById('currentWeekday').textContent = today.weekday;
+  
+  // Update date picker to today
+  const datePicker = document.getElementById('todayDatePicker');
+  if (datePicker) datePicker.value = today.full;
+  
   renderOverview(); renderReview();
 }
 
@@ -968,7 +975,7 @@ function updateTotalCal() {
   document.getElementById('totalCalories').textContent = get('breakfastCal')+get('lunchCal')+get('dinnerCal')+get('snackCal');
 }
 
-function saveDiet() {
+async function saveDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
   const get = id => document.getElementById(id)?.value || '';
   const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
@@ -986,11 +993,13 @@ function saveDiet() {
     created_at: new Date().toISOString()  // ← 添加时间戳！
   };
   
-  saveData(); 
+  // Wait for save to complete (especially cloud upload)
+  await saveData();
+  
   document.getElementById('dietModal').classList.remove('active'); 
   renderOverview(); 
   renderReview(); 
-  alert('饮食记录已保存！');
+  alert('饮食记录已保存并上传到云端！');
 }
 
 function renderDiaryList() {
@@ -1254,7 +1263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Actions
   document.getElementById('addTodoBtn')?.addEventListener('click', () => { addTodo(document.getElementById('todoInput').value); document.getElementById('todoInput').value = ''; });
   document.getElementById('addHabitBtn')?.addEventListener('click', () => { addHabit(document.getElementById('habitInput').value, document.getElementById('habitIcon').value); document.getElementById('habitInput').value = ''; });
-  document.getElementById('saveDiet')?.addEventListener('click', saveDiet);
+  document.getElementById('saveDiet')?.addEventListener('click', () => saveDiet());
   document.getElementById('addDiaryBtn')?.addEventListener('click', () => { AppState.currentDiaryId = null; document.getElementById('diaryModal').classList.add('active'); document.getElementById('diaryDate').value = Utils.formatDate(new Date()).full; document.getElementById('diaryTitle').value = ''; document.getElementById('diaryContent').value = ''; });
   document.getElementById('saveDiaryBtn')?.addEventListener('click', saveDiary);
   document.getElementById('addEventFromCalendar')?.addEventListener('click', () => { document.getElementById('addEventModal').classList.add('active'); document.getElementById('newEventDate').value = document.getElementById('calendarDatePicker').value || Utils.formatDate(new Date()).full; });
