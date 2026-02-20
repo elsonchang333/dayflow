@@ -904,6 +904,41 @@
     </style>
 </head>
 <body>
+    <!-- LOGIN PAGE -->
+    <div id="loginPage" class="page" style="display:none; background: var(--gradient-1); min-height: 100vh;">
+        <div style="padding: 60px 30px; text-align: center; color: white;">
+            <div style="font-size: 80px; margin-bottom: 20px;">🌊</div>
+            <div style="font-size: 36px; font-weight: 800; margin-bottom: 10px;">DayFlow</div>
+            <div style="font-size: 16px; opacity: 0.9; margin-bottom: 40px;">每日效率管理</div>
+            
+            <div style="background: var(--card); border-radius: 24px; padding: 30px; text-align: left; box-shadow: var(--shadow-hover);">
+                <div style="font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 24px; text-align: center;">登录 / 注册</div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size: 14px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 8px;">邮箱</label>
+                    <input type="email" id="loginEmail" class="input-field" placeholder="your@email.com" style="width: 100%;">
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <label style="font-size: 14px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 8px;">密码</label>
+                    <input type="password" id="loginPassword" class="input-field" placeholder="••••••••" style="width: 100%;">
+                </div>
+                
+                <button class="save-btn" onclick="handleLogin()" id="loginBtn" style="margin: 0 0 12px 0;">
+                    <i class="fas fa-sign-in-alt"></i> 登录
+                </button>
+                
+                <button class="settings-btn" onclick="handleRegister()" id="registerBtn" style="width: 100%; background: var(--bg); color: var(--text);">
+                    <i class="fas fa-user-plus"></i> 注册新账号
+                </button>
+                
+                <button class="settings-btn" onclick="skipLogin()" style="width: 100%; margin-top: 12px; background: transparent; color: var(--text-secondary);">
+                    暂不登录，离线使用
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- TODAY PAGE -->
     <div id="todayPage" class="page">
         <div class="header">
@@ -1144,6 +1179,39 @@
                     <span class="notification-banner-text">需要浏览器通知权限</span>
                     <button class="notification-banner-btn" onclick="requestNotificationPermission()">开启</button>
                 </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">👤 账户</div>
+            
+            <div class="settings-item" id="userInfoItem">
+                <div>
+                    <div class="settings-label">当前用户</div>
+                    <div class="settings-desc" id="userEmailDisplay">未登录</div>
+                </div>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div class="settings-label">云端同步</div>
+                    <div class="settings-desc" id="lastSyncDisplay">从未同步</div>
+                </div>
+                <button class="settings-btn" id="syncBtn" onclick="syncAll()" style="display:none;">
+                    <i class="fas fa-cloud-upload-alt"></i> 同步
+                </button>
+            </div>
+            
+            <div id="loginActionItem">
+                <button class="settings-btn" onclick="showLoginPage()" style="width: 100%; margin-top: 12px;">
+                    <i class="fas fa-sign-in-alt"></i> 登录 / 注册
+                </button>
+            </div>
+            
+            <div id="logoutActionItem" style="display:none;">
+                <button class="settings-btn danger" onclick="signOut()" style="width: 100%; margin-top: 12px;">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </button>
             </div>
         </div>
         

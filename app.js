@@ -1,5 +1,9 @@
-// DayFlow Web - 完整功能版
-// 功能：待办、饮食、习惯、日记、番茄钟、统计、导出/导入、深色模式、通知
+// DayFlow Web - 完整功能版（含 Supabase 登录同步）
+// 功能：待办、饮食、习惯、日记、番茄钟、统计、导出/导入、深色模式、通知、登录同步
+
+// ==================== Supabase Config ====================
+const SUPABASE_URL = 'https://zwmulguxnpidlmyjnpgde.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3bXVsZ3V4bnBpZGxteWpucGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTIwMjIsImV4cCI6MjA4NzE2ODAyMn0.Ft7u2_oco7JkQBrbEzhG2_rDihIaGs60f-Sfwb2FSAU';
 
 // ==================== Storage ====================
 const Storage = {
@@ -20,6 +24,378 @@ let diaries = Storage.get('diaries') || [];
 let pomodoroHistory = Storage.get('pomodoroHistory') || [];
 let currentDate = new Date();
 let selectedMood = 3;
+
+// ==================== Auth State ====================
+let currentUser = null;
+let authToken = Storage.get('auth_token');
+let lastSyncTime = Storage.get('last_sync_time') || 0;
+
+// ==================== Auth Functions ====================
+function isLoggedIn() {
+  return !!currentUser;
+}
+
+function getAuthHeaders() {
+  return {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${authToken || SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json'
+  };
+}
+
+async function signUp(email, password) {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error_description || data.error);
+    }
+    
+    if (data.user && data.session) {
+      currentUser = data.user;
+      authToken = data.session.access_token;
+      Storage.set('auth_token', authToken);
+      Storage.set('user_email', email);
+      return { success: true, user: data.user };
+    }
+    
+    return { success: true, message: '注册成功，请查收验证邮件' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function signIn(email, password) {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error_description || data.error);
+    }
+    
+    currentUser = data.user;
+    authToken = data.access_token;
+    Storage.set('auth_token', authToken);
+    Storage.set('user_email', email);
+    
+    // Sync data after login
+    await syncAll();
+    
+    return { success: true, user: data.user };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function signOut() {
+  currentUser = null;
+  authToken = null;
+  Storage.set('auth_token', null);
+  Storage.set('user_email', null);
+  renderAuthUI();
+}
+
+async function getCurrentUser() {
+  if (!authToken) return null;
+  
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: getAuthHeaders()
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    currentUser = data;
+    return data;
+  } catch (error) {
+    console.error('Get user failed:', error);
+    return null;
+  }
+}
+
+// ==================== Sync Functions ====================
+async function syncAll() {
+  if (!isLoggedIn()) {
+    alert('请先登录');
+    return { success: false, error: '未登录' };
+  }
+  
+  try {
+    showSyncLoading(true);
+    
+    // Upload local data
+    await uploadTodos();
+    await uploadHabits();
+    await uploadDiets();
+    await uploadDiaries();
+    
+    // Download cloud data
+    await downloadTodos();
+    await downloadHabits();
+    await downloadDiets();
+    await downloadDiaries();
+    
+    // Save locally
+    saveAllData();
+    
+    lastSyncTime = Date.now();
+    Storage.set('last_sync_time', lastSyncTime);
+    
+    renderAll();
+    showSyncLoading(false);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Sync failed:', error);
+    showSyncLoading(false);
+    return { success: false, error: error.message };
+  }
+}
+
+async function uploadTodos() {
+  const records = todos.map(t => ({
+    id: t.id,
+    user_id: currentUser.id,
+    text: t.text,
+    date: t.date,
+    completed: t.completed,
+    created_at: new Date(t.created_at).toISOString(),
+    updated_at: new Date(t.updated_at || t.created_at).toISOString()
+  }));
+  
+  if (records.length === 0) return;
+  
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/todos`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(records)
+  });
+  
+  if (!response.ok) {
+    throw new Error('Upload todos failed');
+  }
+}
+
+async function uploadHabits() {
+  const records = habits.map(h => ({
+    id: h.id,
+    user_id: currentUser.id,
+    name: h.name,
+    icon: h.icon,
+    check_ins: h.checkIns || [],
+    created_at: new Date(h.created_at).toISOString()
+  }));
+  
+  if (records.length === 0) return;
+  
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/habits`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(records)
+  });
+  
+  if (!response.ok) {
+    throw new Error('Upload habits failed');
+  }
+}
+
+async function uploadDiets() {
+  const records = diets.map(d => ({
+    id: d.id,
+    user_id: currentUser.id,
+    date: d.date,
+    breakfast: d.breakfast,
+    breakfast_cal: d.breakfastCal || 0,
+    lunch: d.lunch,
+    lunch_cal: d.lunchCal || 0,
+    dinner: d.dinner,
+    dinner_cal: d.dinnerCal || 0,
+    snack: d.snack,
+    snack_cal: d.snackCal || 0,
+    created_at: new Date(d.created_at).toISOString(),
+    updated_at: new Date(d.updated_at || d.created_at).toISOString()
+  }));
+  
+  if (records.length === 0) return;
+  
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/diets`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(records)
+  });
+  
+  if (!response.ok) {
+    throw new Error('Upload diets failed');
+  }
+}
+
+async function uploadDiaries() {
+  const records = diaries.map(d => ({
+    id: d.id,
+    user_id: currentUser.id,
+    date: d.date,
+    title: d.title,
+    content: d.content,
+    mood: d.mood,
+    created_at: new Date(d.created_at).toISOString(),
+    updated_at: new Date(d.updated_at || d.created_at).toISOString()
+  }));
+  
+  if (records.length === 0) return;
+  
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/diaries`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(records)
+  });
+  
+  if (!response.ok) {
+    throw new Error('Upload diaries failed');
+  }
+}
+
+async function downloadTodos() {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/todos?select=*`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) return;
+  
+  const data = await response.json();
+  
+  // Merge with local data
+  data.forEach(remote => {
+    const local = todos.find(t => t.id === remote.id);
+    if (!local) {
+      todos.push({
+        id: remote.id,
+        text: remote.text,
+        date: remote.date,
+        completed: remote.completed,
+        created_at: new Date(remote.created_at).getTime(),
+        updated_at: new Date(remote.updated_at).getTime()
+      });
+    }
+  });
+}
+
+async function downloadHabits() {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/habits?select=*`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) return;
+  
+  const data = await response.json();
+  
+  data.forEach(remote => {
+    const local = habits.find(h => h.id === remote.id);
+    if (!local) {
+      habits.push({
+        id: remote.id,
+        name: remote.name,
+        icon: remote.icon,
+        checkIns: remote.check_ins || [],
+        created_at: new Date(remote.created_at).getTime()
+      });
+    } else {
+      // Merge check-ins
+      local.checkIns = [...new Set([...local.checkIns, ...(remote.check_ins || [])])];
+    }
+  });
+}
+
+async function downloadDiets() {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/diets?select=*`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) return;
+  
+  const data = await response.json();
+  
+  data.forEach(remote => {
+    const local = diets.find(d => d.id === remote.id);
+    if (!local) {
+      diets.push({
+        id: remote.id,
+        date: remote.date,
+        breakfast: remote.breakfast,
+        breakfastCal: remote.breakfast_cal,
+        lunch: remote.lunch,
+        lunchCal: remote.lunch_cal,
+        dinner: remote.dinner,
+        dinnerCal: remote.dinner_cal,
+        snack: remote.snack,
+        snackCal: remote.snack_cal,
+        created_at: new Date(remote.created_at).getTime(),
+        updated_at: new Date(remote.updated_at).getTime()
+      });
+    }
+  });
+}
+
+async function downloadDiaries() {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/diaries?select=*`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) return;
+  
+  const data = await response.json();
+  
+  data.forEach(remote => {
+    const local = diaries.find(d => d.id === remote.id);
+    if (!local) {
+      diaries.push({
+        id: remote.id,
+        date: remote.date,
+        title: remote.title,
+        content: remote.content,
+        mood: remote.mood,
+        created_at: new Date(remote.created_at).getTime(),
+        updated_at: new Date(remote.updated_at).getTime()
+      });
+    }
+  });
+}
+
+function saveAllData() {
+  Storage.set('todos', todos);
+  Storage.set('habits', habits);
+  Storage.set('diets', diets);
+  Storage.set('diaries', diaries);
+}
+
+function showSyncLoading(show) {
+  const btn = document.getElementById('syncBtn');
+  if (btn) {
+    btn.innerHTML = show ? '<i class="fas fa-spinner fa-spin"></i> 同步中...' : '<i class="fas fa-cloud-upload-alt"></i> 立即同步';
+    btn.disabled = show;
+  }
+}
 
 // ==================== Pomodoro Timer ====================
 let pomodoroTimer = null;
@@ -51,12 +427,147 @@ const formatDate = (date) => {
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 
 // ==================== Init ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initSettings();
     updateDate();
     renderAll();
     initPomodoro();
+    
+    // Check login status
+    await initAuth();
 });
+
+async function initAuth() {
+    // Try to get current user from token
+    if (authToken) {
+        const user = await getCurrentUser();
+        if (user) {
+            currentUser = user;
+            renderAuthUI();
+            return;
+        }
+    }
+    
+    // Show login page if not logged in
+    renderAuthUI();
+}
+
+function renderAuthUI() {
+    const loginPage = document.getElementById('loginPage');
+    const todayPage = document.getElementById('todayPage');
+    const bottomNav = document.querySelector('.bottom-nav');
+    
+    if (!isLoggedIn()) {
+        // Show login page
+        if (loginPage) loginPage.style.display = 'block';
+        if (todayPage) todayPage.style.display = 'none';
+        if (bottomNav) bottomNav.style.display = 'none';
+    } else {
+        // Show main app
+        if (loginPage) loginPage.style.display = 'none';
+        if (todayPage) todayPage.style.display = 'block';
+        if (bottomNav) bottomNav.style.display = 'flex';
+        
+        // Update settings page
+        updateSettingsAuthUI();
+    }
+}
+
+function updateSettingsAuthUI() {
+    const userEmailDisplay = document.getElementById('userEmailDisplay');
+    const lastSyncDisplay = document.getElementById('lastSyncDisplay');
+    const syncBtn = document.getElementById('syncBtn');
+    const loginActionItem = document.getElementById('loginActionItem');
+    const logoutActionItem = document.getElementById('logoutActionItem');
+    
+    if (isLoggedIn()) {
+        if (userEmailDisplay) userEmailDisplay.textContent = Storage.get('user_email') || '已登录';
+        if (lastSyncDisplay) lastSyncDisplay.textContent = lastSyncTime ? new Date(lastSyncTime).toLocaleString() : '从未同步';
+        if (syncBtn) syncBtn.style.display = 'block';
+        if (loginActionItem) loginActionItem.style.display = 'none';
+        if (logoutActionItem) logoutActionItem.style.display = 'block';
+    } else {
+        if (userEmailDisplay) userEmailDisplay.textContent = '未登录';
+        if (lastSyncDisplay) lastSyncDisplay.textContent = '离线使用';
+        if (syncBtn) syncBtn.style.display = 'none';
+        if (loginActionItem) loginActionItem.style.display = 'block';
+        if (logoutActionItem) logoutActionItem.style.display = 'none';
+    }
+}
+
+function showLoginPage() {
+    showPage('settings');
+    document.getElementById('settingsPage').style.display = 'none';
+    document.getElementById('loginPage').style.display = 'block';
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!email || !password) {
+        alert('请输入邮箱和密码');
+        return;
+    }
+    
+    const btn = document.getElementById('loginBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+    btn.disabled = true;
+    
+    const result = await signIn(email, password);
+    
+    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+    btn.disabled = false;
+    
+    if (result.success) {
+        alert('登录成功！');
+        renderAuthUI();
+    } else {
+        alert('登录失败: ' + result.error);
+    }
+}
+
+async function handleRegister() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!email || !password) {
+        alert('请输入邮箱和密码');
+        return;
+    }
+    
+    if (password.length < 6) {
+        alert('密码至少需要6位');
+        return;
+    }
+    
+    const btn = document.getElementById('registerBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+    btn.disabled = true;
+    
+    const result = await signUp(email, password);
+    
+    btn.innerHTML = '<i class="fas fa-user-plus"></i> 注册新账号';
+    btn.disabled = false;
+    
+    if (result.success) {
+        if (result.user) {
+            alert('注册成功！已自动登录。');
+            renderAuthUI();
+        } else {
+            alert('注册成功！请查收验证邮件后登录。');
+        }
+    } else {
+        alert('注册失败: ' + result.error);
+    }
+}
+
+function skipLogin() {
+    // Hide login page, show main app
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('todayPage').style.display = 'block';
+    document.querySelector('.bottom-nav').style.display = 'flex';
+}
 
 function initSettings() {
     // Apply dark mode
@@ -94,6 +605,9 @@ function showPage(page) {
     if (page === 'stats') {
         updateStats();
         initStatsDate();
+    }
+    if (page === 'settings') {
+        updateSettingsAuthUI();
     }
     if (page === 'pomodoro') updatePomodoroHistory();
 }
