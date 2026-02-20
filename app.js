@@ -26,7 +26,46 @@ const Utils = {
     };
   },
   generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2,9); },
-  getMoodEmoji(mood) { const emojis = ['😫','😔','😐','😊','😄']; return emojis[(mood||3)-1] || '😐'; }
+  getMoodEmoji(mood) { const emojis = ['😫','😔','😐','😊','😄']; return emojis[(mood||3)-1] || '😐'; },
+  
+  // Helper: ensure item has timestamps
+  addTimestamps(item) {
+    const now = Date.now();
+    return {
+      ...item,
+      created_at: item.created_at || now,
+      updated_at: now  // Always update on save
+    };
+  },
+  
+  // Helper: merge two arrays by timestamp (Last-Write-Wins)
+  mergeByTimestamp(localItems, cloudItems) {
+    const merged = {};
+    
+    // Index local items
+    localItems.forEach(item => {
+      merged[item.id] = item;
+    });
+    
+    // Merge cloud items (timestamp comparison)
+    cloudItems.forEach(cloudItem => {
+      const localItem = merged[cloudItem.id];
+      if (!localItem) {
+        // New item from cloud
+        merged[cloudItem.id] = cloudItem;
+      } else {
+        // Conflict: compare timestamps
+        const cloudTime = cloudItem.updated_at || 0;
+        const localTime = localItem.updated_at || 0;
+        if (cloudTime > localTime) {
+          merged[cloudItem.id] = cloudItem;  // Cloud is newer
+        }
+        // If local is newer, keep local (already in merged)
+      }
+    });
+    
+    return Object.values(merged);
+  }
 };
 
 const LocalDB = {
@@ -205,6 +244,103 @@ async function logout() {
   } catch(e) {
     console.error('Logout error:', e);
   }
+}
+
+// ==========================================
+// NEW: Todoist-style Sync (Timestamp-based)
+// ==========================================
+
+async function syncWithCloud() {
+  if (!supabaseClient || !AppState.currentUser) {
+    console.log('⚠️ 未登录，跳过同步');
+    return;
+  }
+  
+  const userId = AppState.currentUser.id;
+  console.log('🔄 开始同步...');
+  
+  try {
+    // 1. 上传本地数据到云端
+    console.log('📤 上传本地数据...');
+    await uploadToCloud(userId);
+    
+    // 2. 从云端下载最新数据
+    console.log('📥 下载云端数据...');
+    const cloudData = await downloadFromCloud(userId);
+    
+    // 3. 合并数据（时间戳优先）
+    console.log('🔄 合并数据...');
+    AppState.todos = Utils.mergeByTimestamp(AppState.todos, cloudData.todos);
+    AppState.habits = Utils.mergeByTimestamp(AppState.habits, cloudData.habits);
+    AppState.diets = Utils.mergeByTimestamp(AppState.diets, cloudData.diets);
+    AppState.events = Utils.mergeByTimestamp(AppState.events, cloudData.events);
+    AppState.diaries = Utils.mergeByTimestamp(AppState.diaries, cloudData.diaries);
+    
+    // 4. 保存合并后的数据到本地
+    saveData();
+    
+    // 5. 刷新界面
+    renderOverview();
+    renderReview();
+    
+    console.log('✅ 同步完成！');
+    alert('✅ 数据已同步！');
+  } catch(e) {
+    console.error('❌ 同步失败:', e);
+    alert('❌ 同步失败: ' + e.message);
+  }
+}
+
+async function uploadToCloud(userId) {
+  // 上传所有数据（带时间戳）
+  const promises = [];
+  
+  if (AppState.todos.length > 0) {
+    promises.push(supabaseClient.from('todos').upsert(
+      AppState.todos.map(t => ({ ...t, user_id: userId }))
+    ));
+  }
+  if (AppState.habits.length > 0) {
+    promises.push(supabaseClient.from('habits').upsert(
+      AppState.habits.map(h => ({ ...h, user_id: userId }))
+    ));
+  }
+  if (AppState.diets.length > 0) {
+    promises.push(supabaseClient.from('diets').upsert(
+      AppState.diets.map(d => ({ ...d, user_id: userId }))
+    ));
+  }
+  if (AppState.events.length > 0) {
+    promises.push(supabaseClient.from('events').upsert(
+      AppState.events.map(e => ({ ...e, user_id: userId }))
+    ));
+  }
+  if (AppState.diaries.length > 0) {
+    promises.push(supabaseClient.from('diaries').upsert(
+      AppState.diaries.map(d => ({ ...d, user_id: userId }))
+    ));
+  }
+  
+  await Promise.all(promises);
+  console.log('✅ 上传完成');
+}
+
+async function downloadFromCloud(userId) {
+  const [todosRes, habitsRes, dietsRes, eventsRes, diariesRes] = await Promise.all([
+    supabaseClient.from('todos').select('*').eq('user_id', userId),
+    supabaseClient.from('habits').select('*').eq('user_id', userId),
+    supabaseClient.from('diets').select('*').eq('user_id', userId),
+    supabaseClient.from('events').select('*').eq('user_id', userId),
+    supabaseClient.from('diaries').select('*').eq('user_id', userId)
+  ]);
+  
+  return {
+    todos: todosRes.data || [],
+    habits: habitsRes.data || [],
+    diets: dietsRes.data || [],
+    events: eventsRes.data || [],
+    diaries: diariesRes.data || []
+  };
 }
 
 function switchToLogin() {
@@ -979,16 +1115,28 @@ function renderTodos() {
 
 function addTodo(text) {
   if (!text.trim()) return;
-  const todo = { id: Utils.generateId(), text: text.trim(), date: document.getElementById('todoDate')?.value || Utils.formatDate(new Date()).full, completed: false, created_at: new Date().toISOString() };
+  const todo = Utils.addTimestamps({
+    id: Utils.generateId(),
+    text: text.trim(),
+    date: document.getElementById('todoDate')?.value || Utils.formatDate(new Date()).full,
+    completed: false
+  });
   AppState.todos.unshift(todo); saveData(); renderTodos(); renderOverview(); renderReview();
 }
 
 function toggleTodo(id) {
   const todo = AppState.todos.find(t => t.id === id);
-  if (todo) { todo.completed = !todo.completed; saveData(); renderTodos(); renderOverview(); renderReview(); }
+  if (todo) {
+    todo.completed = !todo.completed;
+    todo.updated_at = Date.now();  // Update timestamp
+    saveData(); renderTodos(); renderOverview(); renderReview();
+  }
 }
 
-function deleteTodo(id) { AppState.todos = AppState.todos.filter(t => t.id !== id); saveData(); renderTodos(); renderOverview(); renderReview(); }
+function deleteTodo(id) {
+  AppState.todos = AppState.todos.filter(t => t.id !== id);
+  saveData(); renderTodos(); renderOverview(); renderReview();
+}
 
 function renderHabits() {
   const container = document.getElementById('habitList');
@@ -1069,6 +1217,7 @@ async function saveDiet() {
   // Check if record already exists for this date
   const existingIndex = AppState.diets.findIndex(d => d.date === date);
   
+  const now = Date.now();
   const dietData = {
     id: existingIndex >= 0 ? AppState.diets[existingIndex].id : Utils.generateId(),
     date: date,
@@ -1080,7 +1229,8 @@ async function saveDiet() {
     dinnerCal: getNum('dinnerCal'),
     snack: getVal('snackInput'),
     snackCal: getNum('snackCal'),
-    created_at: existingIndex >= 0 ? AppState.diets[existingIndex].created_at : new Date().toISOString()
+    created_at: existingIndex >= 0 ? AppState.diets[existingIndex].created_at : now,
+    updated_at: now  // Always update timestamp
   };
   
   if (existingIndex >= 0) {
@@ -1540,6 +1690,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     register(email, password);
   });
   document.getElementById('logoutBtn')?.addEventListener('click', logout);
+  
+  // NEW: Sync button
+  document.getElementById('syncBtn')?.addEventListener('click', () => {
+    syncWithCloud();
+  });
   
   // Bind stats buttons immediately
   setTimeout(bindStatsButtons, 500);
