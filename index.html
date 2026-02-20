@@ -937,20 +937,27 @@
                 <button class="settings-btn" onclick="changeTodayDate(-1)" style="padding: 10px 14px; min-width: 44px;">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <div style="flex: 1; text-align: center;">
-                    <div style="font-size: 20px; font-weight: 700; color: var(--text);" id="todayDateDisplay">
+                <div style="flex: 1; text-align: center; cursor: pointer;" onclick="showDatePicker()">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--text);" id="todayDateDisplay">
                         --月--日
                     </div>
                     <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;" id="todayWeekdayDisplay">
                         星期-
+                    </div>
+                    <div style="font-size: 11px; color: var(--primary); margin-top: 4px;">
+                        <i class="fas fa-calendar-alt"></i> 点击选择日期
                     </div>
                 </div>
                 <button class="settings-btn" onclick="changeTodayDate(1)" style="padding: 10px 14px; min-width: 44px;">
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
+            <!-- Hidden date input -->
+            <input type="date" id="todayDateInput" style="position: absolute; opacity: 0; pointer-events: none;" onchange="onTodayDateChange()">
             <div style="display: flex; gap: 10px; margin-top: 12px;">
-                <input type="date" id="todayDateInput" class="input-field" style="flex: 1; text-align: center;" onchange="onTodayDateChange()">
+                <button class="settings-btn" onclick="showDatePicker()" style="flex: 1;">
+                    <i class="fas fa-calendar"></i> 选择日期
+                </button>
                 <button class="settings-btn success" onclick="goToTodayDate()" style="white-space: nowrap;">
                     <i class="fas fa-calendar-day"></i> 今天
                 </button>
@@ -1243,6 +1250,22 @@
                 <button class="modal-close" onclick="closeModal('dietModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
+                <!-- Date Selector -->
+                <div class="input-group" style="background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="settings-btn" onclick="changeModalDate('diet', -1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div style="flex: 1; text-align: center;">
+                            <div style="color: white; font-weight: 700; font-size: 18px;" id="dietModalDateDisplay">--月--日</div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 12px;" id="dietModalWeekdayDisplay">星期-</div>
+                        </div>
+                        <button class="settings-btn" onclick="changeModalDate('diet', 1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <input type="date" id="dietModalDateInput" class="input-field" style="margin-top: 12px; text-align: center; background: white;" onchange="onModalDateChange('diet')">
+                </div>
                 <div class="input-group">
                     <label class="input-label">🌅 早餐</label>
                     <input type="text" class="input-field" id="breakfastInput" placeholder="吃了什么...">
@@ -1276,6 +1299,22 @@
                 <button class="modal-close" onclick="closeModal('todoModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
+                <!-- Date Selector -->
+                <div class="input-group" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="settings-btn" onclick="changeModalDate('todo', -1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div style="flex: 1; text-align: center;">
+                            <div style="color: white; font-weight: 700; font-size: 18px;" id="todoModalDateDisplay">--月--日</div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 12px;" id="todoModalWeekdayDisplay">星期-</div>
+                        </div>
+                        <button class="settings-btn" onclick="changeModalDate('todo', 1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <input type="date" id="todoModalDateInput" class="input-field" style="margin-top: 12px; text-align: center; background: white;" onchange="onModalDateChange('todo')">
+                </div>
                 <div class="add-btn">
                     <input type="text" class="add-input" id="todoInput" placeholder="添加新待办...">
                     <button class="add-submit" onclick="addTodo()">
@@ -1295,6 +1334,22 @@
                 <button class="modal-close" onclick="closeModal('habitModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
+                <!-- Date Selector -->
+                <div class="input-group" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="settings-btn" onclick="changeModalDate('habit', -1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div style="flex: 1; text-align: center;">
+                            <div style="color: white; font-weight: 700; font-size: 18px;" id="habitModalDateDisplay">--月--日</div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 12px;" id="habitModalWeekdayDisplay">星期-</div>
+                        </div>
+                        <button class="settings-btn" onclick="changeModalDate('habit', 1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <input type="date" id="habitModalDateInput" class="input-field" style="margin-top: 12px; text-align: center; background: white;" onchange="onModalDateChange('habit')">
+                </div>
                 <div class="add-btn">
                     <input type="text" class="add-input" id="habitInput" placeholder="添加新习惯...">
                     <button class="add-submit" onclick="addHabit()">
@@ -1314,6 +1369,22 @@
                 <button class="modal-close" onclick="closeModal('diaryModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
+                <!-- Date Selector -->
+                <div class="input-group" style="background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%); padding: 16px; border-radius: 16px; margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="settings-btn" onclick="changeModalDate('diary', -1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div style="flex: 1; text-align: center;">
+                            <div style="color: white; font-weight: 700; font-size: 18px;" id="diaryModalDateDisplay">--月--日</div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 12px;" id="diaryModalWeekdayDisplay">星期-</div>
+                        </div>
+                        <button class="settings-btn" onclick="changeModalDate('diary', 1)" style="background: rgba(255,255,255,0.2); color: white; min-width: 36px; padding: 8px;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <input type="date" id="diaryModalDateInput" class="input-field" style="margin-top: 12px; text-align: center; background: white;" onchange="onModalDateChange('diary')">
+                </div>
                 <div class="input-group">
                     <label class="input-label">今天心情如何？</label>
                     <div class="mood-grid">

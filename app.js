@@ -135,6 +135,20 @@ function goToTodayDate() {
     renderAll();
 }
 
+function showDatePicker() {
+    const dateInput = document.getElementById('todayDateInput');
+    if (dateInput) {
+        // For mobile, we need to focus and click
+        dateInput.style.pointerEvents = 'auto';
+        dateInput.focus();
+        dateInput.click();
+        // Trigger the native date picker
+        if (typeof dateInput.showPicker === 'function') {
+            dateInput.showPicker();
+        }
+    }
+}
+
 function renderAll() {
     const dateStr = formatDate(currentDate).full;
     
@@ -223,13 +237,14 @@ function addTodo() {
     todos.unshift({
         id: generateId(),
         text: text,
-        date: formatDate(currentDate).full,
+        date: formatDate(modalDates.todo).full,
         completed: false,
         created_at: Date.now()
     });
     
     Storage.set('todos', todos);
     input.value = '';
+    renderTodoList(todos.filter(t => t.date === formatDate(modalDates.todo).full));
     renderAll();
     
     // Send notification if enabled
@@ -851,6 +866,118 @@ function clearAllData() {
     }
 }
 
+// ==================== Modal Date Variables ====================
+let modalDates = {
+    todo: new Date(),
+    diet: new Date(),
+    habit: new Date(),
+    diary: new Date()
+};
+
+function updateModalDateDisplay(type) {
+    const date = modalDates[type];
+    const dateInfo = formatDate(date);
+    
+    const displayEl = document.getElementById(type + 'ModalDateDisplay');
+    const weekdayEl = document.getElementById(type + 'ModalWeekdayDisplay');
+    const inputEl = document.getElementById(type + 'ModalDateInput');
+    
+    if (displayEl) displayEl.textContent = dateInfo.month + dateInfo.date + '日';
+    if (weekdayEl) weekdayEl.textContent = dateInfo.weekday;
+    if (inputEl) inputEl.value = formatDateForInput(date);
+}
+
+function changeModalDate(type, days) {
+    modalDates[type].setDate(modalDates[type].getDate() + days);
+    updateModalDateDisplay(type);
+    
+    // Refresh list for this date
+    if (type === 'todo') {
+        renderTodoList(todos.filter(t => t.date === formatDate(modalDates.todo).full));
+    } else if (type === 'habit') {
+        renderHabitListForDate(formatDate(modalDates.habit).full);
+    } else if (type === 'diet') {
+        loadDietForDate(formatDate(modalDates.diet).full);
+    }
+}
+
+function onModalDateChange(type) {
+    const inputEl = document.getElementById(type + 'ModalDateInput');
+    if (inputEl && inputEl.value) {
+        modalDates[type] = new Date(inputEl.value);
+        updateModalDateDisplay(type);
+        
+        // Refresh list for this date
+        if (type === 'todo') {
+            renderTodoList(todos.filter(t => t.date === formatDate(modalDates.todo).full));
+        } else if (type === 'habit') {
+            renderHabitListForDate(formatDate(modalDates.habit).full);
+        } else if (type === 'diet') {
+            loadDietForDate(formatDate(modalDates.diet).full);
+        }
+    }
+}
+
+function renderHabitListForDate(dateStr) {
+    const modalList = document.getElementById('habitModalList');
+    if (modalList) {
+        modalList.innerHTML = habits.map(habit => {
+            const isChecked = habit.checkIns && habit.checkIns.includes(dateStr);
+            return `
+                <div class="todo-item">
+                    <div style="display:flex;align-items:center;flex:1;" onclick="toggleHabitForDate('${habit.id}', '${dateStr}')">
+                        <div class="habit-item ${isChecked ? 'habit-checked' : ''}" style="margin-right:12px;width:44px;height:44px;padding:0;">
+                            <div class="habit-icon" style="margin:0;">${habit.icon}</div>
+                        </div>
+                        <span style="font-size:16px;font-weight:500;">${habit.name}</span>
+                    </div>
+                    <span class="todo-delete" onclick="deleteHabit('${habit.id}')">
+                        <i class="fas fa-trash"></i>
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+function toggleHabitForDate(id, dateStr) {
+    const habit = habits.find(h => h.id === id);
+    if (habit) {
+        const index = habit.checkIns.indexOf(dateStr);
+        if (index >= 0) {
+            habit.checkIns.splice(index, 1);
+        } else {
+            habit.checkIns.push(dateStr);
+        }
+        Storage.set('habits', habits);
+        renderHabitListForDate(dateStr);
+        renderAll();
+    }
+}
+
+function loadDietForDate(dateStr) {
+    const diet = diets.find(d => d.date === dateStr);
+    if (diet) {
+        document.getElementById('breakfastInput').value = diet.breakfast || '';
+        document.getElementById('breakfastCal').value = diet.breakfastCal || '';
+        document.getElementById('lunchInput').value = diet.lunch || '';
+        document.getElementById('lunchCal').value = diet.lunchCal || '';
+        document.getElementById('dinnerInput').value = diet.dinner || '';
+        document.getElementById('dinnerCal').value = diet.dinnerCal || '';
+        document.getElementById('snackInput').value = diet.snack || '';
+        document.getElementById('snackCal').value = diet.snackCal || '';
+    } else {
+        document.getElementById('breakfastInput').value = '';
+        document.getElementById('breakfastCal').value = '';
+        document.getElementById('lunchInput').value = '';
+        document.getElementById('lunchCal').value = '';
+        document.getElementById('dinnerInput').value = '';
+        document.getElementById('dinnerCal').value = '';
+        document.getElementById('snackInput').value = '';
+        document.getElementById('snackCal').value = '';
+    }
+}
+
 // ==================== Modal Functions ====================
 function openModal(id) {
     document.getElementById(id).classList.add('active');
@@ -861,13 +988,34 @@ function closeModal(id) {
 }
 
 function openTodoModal() {
-    renderTodoList(todos.filter(t => t.date === formatDate(currentDate).full));
+    modalDates.todo = new Date(currentDate);
+    updateModalDateDisplay('todo');
+    renderTodoList(todos.filter(t => t.date === formatDate(modalDates.todo).full));
     openModal('todoModal');
 }
 
 function openHabitModal() {
-    renderHabitList();
+    modalDates.habit = new Date(currentDate);
+    updateModalDateDisplay('habit');
+    renderHabitListForDate(formatDate(modalDates.habit).full);
     openModal('habitModal');
+}
+
+function openDietModal() {
+    modalDates.diet = new Date(currentDate);
+    updateModalDateDisplay('diet');
+    loadDietForDate(formatDate(modalDates.diet).full);
+    openModal('dietModal');
+}
+
+function openDiaryModal() {
+    modalDates.diary = new Date(currentDate);
+    updateModalDateDisplay('diary');
+    selectedMood = 3;
+    document.getElementById('diaryTitle').value = '';
+    document.getElementById('diaryContent').value = '';
+    selectMood(3);
+    openModal('diaryModal');
 }
 
 // ==================== Event Listeners ====================
