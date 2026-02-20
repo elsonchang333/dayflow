@@ -55,10 +55,7 @@ async function initSupabase() {
       AppState.currentUser = user;
       console.log('✅ User already logged in:', user.email);
       hideAuthModal();
-      
-      // Load from cloud
-      console.log('☁️ Loading data from cloud...');
-      await loadFromCloud();
+      await loadUserData();
     } else {
       console.log('👤 No user logged in');
       showAuthModal();
@@ -210,57 +207,6 @@ async function logout() {
   }
 }
 
-// Clear all user data (for testing)
-async function clearAllData() {
-  if (!confirm('⚠️ 警告：这将删除所有数据！\n\n包括：\n- 本地数据\n- 云端数据\n\n此操作不可恢复，确定要清除吗？')) {
-    return;
-  }
-  
-  if (!confirm('再次确认：你真的要删除所有数据吗？')) {
-    return;
-  }
-  
-  try {
-    // Clear Supabase data FIRST (before clearing local data)
-    if (AppState.currentUser && supabaseClient) {
-      const userId = AppState.currentUser.id;
-      console.log('🗑️ Clearing Supabase data for user:', userId);
-      
-      await supabaseClient.from('todos').delete().eq('user_id', userId);
-      await supabaseClient.from('habits').delete().eq('user_id', userId);
-      await supabaseClient.from('diaries').delete().eq('user_id', userId);
-      await supabaseClient.from('diet').delete().eq('user_id', userId);
-      await supabaseClient.from('events').delete().eq('user_id', userId);
-      
-      console.log('✅ Supabase data cleared');
-    }
-    
-    // Clear local storage
-    LocalDB.set('todos', []);
-    LocalDB.set('habits', []);
-    LocalDB.set('diet', {});
-    LocalDB.set('events', []);
-    LocalDB.set('diaries', []);
-    
-    // Clear AppState
-    AppState.todos = [];
-    AppState.habits = [];
-    AppState.diet = {};
-    AppState.events = [];
-    AppState.diaries = [];
-    
-    // Re-render
-    renderOverview();
-    renderReview();
-    
-    alert('✅ 所有数据已清除！页面将刷新...');
-    location.reload();
-  } catch(e) {
-    console.error('❌ Failed to clear data:', e);
-    alert('❌ 清除数据失败: ' + e.message);
-  }
-}
-
 function switchToLogin() {
   document.getElementById('loginForm').style.display = 'block';
   document.getElementById('registerForm').style.display = 'none';
@@ -280,228 +226,68 @@ function updateUserDisplay() {
   document.getElementById('currentUserEmail').textContent = email;
 }
 
-// Simple load from cloud - OVERWRITE everything
-async function loadFromCloud() {
-  if (!AppState.currentUser || !supabaseClient) return;
-  
-  updateSyncStatus('downloading');
-  
-  try {
-    const userId = AppState.currentUser.id;
-    console.log('☁️ Loading from cloud for user:', userId);
-    
-    // Load all data from cloud (with individual error handling)
-    const [todosRes, habitsRes, diariesRes, dietsRes, eventsRes] = await Promise.all([
-      supabaseClient.from('todos').select('*').eq('user_id', userId).catch(e => { console.warn('Todos load failed:', e); return { data: [] }; }),
-      supabaseClient.from('habits').select('*').eq('user_id', userId).catch(e => { console.warn('Habits load failed:', e); return { data: [] }; }),
-      supabaseClient.from('diaries').select('*').eq('user_id', userId).catch(e => { console.warn('Diaries load failed:', e); return { data: [] }; }),
-      supabaseClient.from('diet').select('*').eq('user_id', userId).catch(e => { console.warn('Diet load failed:', e); return { data: [] }; }),
-      supabaseClient.from('events').select('*').eq('user_id', userId).catch(e => { console.warn('Events load failed:', e); return { data: [] }; })
-    ]);
-    
-    // OVERWRITE local state with cloud data
-    AppState.todos = todosRes?.data || [];
-    AppState.habits = habitsRes?.data || [];
-    AppState.diaries = diariesRes?.data || [];
-    AppState.events = eventsRes?.data || [];
-    
-    AppState.diet = {};
-    if (dietsRes?.data) {
-      dietsRes.data.forEach(d => AppState.diet[d.date] = d);
-    }
-    
-    console.log('✅ Loaded from cloud:');
-    console.log('  - todos:', AppState.todos.length);
-    console.log('  - habits:', AppState.habits.length);
-    console.log('  - diaries:', AppState.diaries.length);
-    console.log('  - diet:', Object.keys(AppState.diet).length);
-    console.log('  - events:', AppState.events.length);
-    
-    // Save to localStorage as cache
-    LocalDB.set('todos', AppState.todos);
-    LocalDB.set('habits', AppState.habits);
-    LocalDB.set('diet', AppState.diet);
-    LocalDB.set('events', AppState.events);
-    LocalDB.set('diaries', AppState.diaries);
-    
-    renderOverview();
-    renderReview();
-    
-    const totalItems = AppState.todos.length + AppState.habits.length + AppState.diaries.length + Object.keys(AppState.diet).length + AppState.events.length;
-    if (totalItems > 0) {
-      console.log('✅ 已同步 ' + totalItems + ' 条记录');
-      updateSyncStatus('synced');
-      
-      // Force re-render to ensure UI shows data
-      setTimeout(() => {
-        console.log('🔄 Force re-render after cloud load');
-        renderOverview();
-        renderReview();
-      }, 100);
-    } else {
-      updateSyncStatus('ready', '云端无数据');
-    }
-  } catch(e) {
-    console.error('❌ Failed to load from cloud:', e);
-    updateSyncStatus('error', '下载失败');
-    // Still render with local data
-    renderOverview();
-    renderReview();
-  }
-}
-
-// Diagnose cloud data status
-async function diagnoseCloudData() {
-  if (!supabaseClient || !AppState.currentUser) {
-    alert('请先登录');
-    return;
-  }
-  
-  const userId = AppState.currentUser.id;
-  let report = '🔍 云端数据诊断报告\n\n';
-  report += '用户ID: ' + userId + '\n\n';
-  
-  try {
-    // Check each table
-    const tables = ['todos', 'habits', 'diaries', 'diet', 'events'];
-    
-    for (const table of tables) {
-      const { data, error } = await supabaseClient
-        .from(table)
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (error) {
-        report += `❌ ${table}: 查询失败 - ${error.message}\n`;
-      } else {
-        report += `✅ ${table}: ${data?.length || 0} 条记录\n`;
-        if (data && data.length > 0) {
-          report += `   样例: ${JSON.stringify(data[0]).substring(0, 100)}...\n`;
-        }
-      }
-    }
-    
-    report += '\n📊 本地数据:\n';
-    report += `  - todos: ${AppState.todos.length}\n`;
-    report += `  - habits: ${AppState.habits.length}\n`;
-    report += `  - diaries: ${AppState.diaries.length}\n`;
-    report += `  - diet: ${Object.keys(AppState.diet).length}\n`;
-    report += `  - events: ${AppState.events.length}\n`;
-    
-    alert(report);
-    console.log(report);
-  } catch(e) {
-    alert('诊断失败: ' + e.message);
-    console.error(e);
-  }
-}
-
-// Load user data from Supabase and MERGE with local data
+// Load user data from Supabase
 async function loadUserData() {
   if (!AppState.currentUser) return;
   
   try {
     const userId = AppState.currentUser.id;
     console.log('📥 Loading data from Supabase for user:', userId);
-    console.log('📥 Current local diet data:', AppState.diet);
     
-    // Load todos - merge strategy: cloud + local (prefer local if same id)
+    // Load todos
     const { data: todos, error: todosError } = await supabaseClient.from('todos').select('*').eq('user_id', userId);
     if (todosError) console.warn('❌ Failed to load todos:', todosError);
-    else if (todos && todos.length > 0) {
-      // Merge: start with cloud, add local items that don't exist in cloud
-      const cloudIds = new Set(todos.map(t => t.id));
-      const localOnlyTodos = AppState.todos.filter(t => !cloudIds.has(t.id));
-      AppState.todos = [...todos, ...localOnlyTodos];
-      console.log('✅ Merged', todos.length, 'cloud todos +', localOnlyTodos.length, 'local todos');
+    else if (todos) {
+      AppState.todos = todos;
+      console.log('✅ Loaded', todos.length, 'todos');
     }
     
-    // Load habits - merge strategy
+    // Load habits
     const { data: habits, error: habitsError } = await supabaseClient.from('habits').select('*').eq('user_id', userId);
     if (habitsError) console.warn('❌ Failed to load habits:', habitsError);
-    else if (habits && habits.length > 0) {
-      const cloudIds = new Set(habits.map(h => h.id));
-      const localOnlyHabits = AppState.habits.filter(h => !cloudIds.has(h.id));
-      AppState.habits = [...habits, ...localOnlyHabits];
-      console.log('✅ Merged', habits.length, 'cloud habits +', localOnlyHabits.length, 'local habits');
+    else if (habits) {
+      AppState.habits = habits;
+      console.log('✅ Loaded', habits.length, 'habits');
     }
     
-    // Load diaries - merge strategy
+    // Load diaries
     const { data: diaries, error: diariesError } = await supabaseClient.from('diaries').select('*').eq('user_id', userId);
     if (diariesError) console.warn('❌ Failed to load diaries:', diariesError);
-    else if (diaries && diaries.length > 0) {
-      const cloudIds = new Set(diaries.map(d => d.id));
-      const localOnlyDiaries = AppState.diaries.filter(d => !cloudIds.has(d.id));
-      AppState.diaries = [...diaries, ...localOnlyDiaries];
-      console.log('✅ Merged', diaries.length, 'cloud diaries +', localOnlyDiaries.length, 'local diaries');
+    else if (diaries) {
+      AppState.diaries = diaries;
+      console.log('✅ Loaded', diaries.length, 'diaries');
     }
     
-    // Load diet - merge strategy: merge by date
+    // Load diet
     const { data: diets, error: dietsError } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
     if (dietsError) console.warn('❌ Failed to load diet:', dietsError);
-    else if (diets && diets.length > 0) {
-      // Merge: local diet takes priority, add cloud entries for dates not in local
-      diets.forEach(d => {
-        if (!AppState.diet[d.date]) {
-          AppState.diet[d.date] = d;
-        }
-      });
-      console.log('✅ Merged diet:', Object.keys(AppState.diet).length, 'total dates');
+    else if (diets) {
+      AppState.diet = {};
+      diets.forEach(d => AppState.diet[d.date] = d);
+      console.log('✅ Loaded', diets.length, 'diet entries');
     }
-    console.log('📥 Final AppState.diet:', AppState.diet);
     
-    // Load events - merge strategy
+    // Load events
     const { data: events, error: eventsError } = await supabaseClient.from('events').select('*').eq('user_id', userId);
     if (eventsError) console.warn('❌ Failed to load events:', eventsError);
-    else if (events && events.length > 0) {
-      const cloudIds = new Set(events.map(e => e.id));
-      const localOnlyEvents = AppState.events.filter(e => !cloudIds.has(e.id));
-      AppState.events = [...events, ...localOnlyEvents];
-      console.log('✅ Merged', events.length, 'cloud events +', localOnlyEvents.length, 'local events');
+    else if (events) {
+      AppState.events = events;
+      console.log('✅ Loaded', events.length, 'events');
     }
     
-    console.log('✅ User data merged from Supabase');
+    console.log('✅ User data loaded from Supabase');
     
-    // Save merged data to local storage
+    // Save to local storage (without triggering cloud sync)
     LocalDB.set('todos', AppState.todos);
     LocalDB.set('habits', AppState.habits);
     LocalDB.set('diet', AppState.diet);
     LocalDB.set('events', AppState.events);
     LocalDB.set('diaries', AppState.diaries);
-    console.log('💾 Saved merged data to local storage');
-    
-    // Sync local-only data to cloud
-    await syncLocalOnlyDataToCloud(userId);
+    console.log('💾 Saved cloud data to local storage');
     
     renderOverview(); renderReview();
   } catch(e) {
     console.error('❌ Failed to load user data:', e);
-  }
-}
-
-// Sync data that only exists locally to the cloud
-async function syncLocalOnlyDataToCloud(userId) {
-  try {
-    console.log('🔄 Syncing local-only data to cloud...');
-    
-    // Sync diet entries
-    const dietEntries = Object.entries(AppState.diet);
-    for (const [date, data] of dietEntries) {
-      if (!data.user_id) {
-        const dietWithUser = { 
-          ...data, 
-          id: data.id || `${userId}_${date}`,
-          date, 
-          user_id: userId 
-        };
-        const { error } = await supabaseClient.from('diet').upsert(dietWithUser);
-        if (error) console.warn('Failed to sync diet:', error);
-      }
-    }
-    
-    console.log('✅ Local-only data synced to cloud');
-  } catch(e) {
-    console.warn('❌ Failed to sync local data:', e);
   }
 }
 
@@ -537,134 +323,24 @@ async function syncToSupabase() {
 }
 
 function loadData() {
-  console.log('📂 Loading data from LocalStorage...');
   AppState.todos = LocalDB.get('todos') || [];
   AppState.habits = LocalDB.get('habits') || [];
   AppState.diet = LocalDB.get('diet') || {};
   AppState.events = LocalDB.get('events') || [];
   AppState.diaries = LocalDB.get('diaries') || [];
-  console.log('📂 Loaded from LocalStorage:');
-  console.log('  - todos:', AppState.todos.length);
-  console.log('  - habits:', AppState.habits.length);
-  console.log('  - diet:', Object.keys(AppState.diet).length, 'entries');
-  console.log('  - events:', AppState.events.length);
-  console.log('  - diaries:', AppState.diaries.length);
-  
-  // Debug: show raw localStorage
-  console.log('📂 Raw localStorage keys:', Object.keys(localStorage).filter(k => k.startsWith('dayflow_')));
 }
 
 async function saveData() {
-  // Always save to localStorage first (as cache)
   LocalDB.set('todos', AppState.todos);
   LocalDB.set('habits', AppState.habits);
   LocalDB.set('diet', AppState.diet);
   LocalDB.set('events', AppState.events);
   LocalDB.set('diaries', AppState.diaries);
   
-  // ALWAYS upload to cloud if logged in
+  // Auto-sync to Supabase if logged in
   if (AppState.currentUser && supabaseClient) {
-    console.log('☁️ Saving to cloud...');
-    await saveToCloud();
-  }
-}
-
-// Update sync status UI
-function updateSyncStatus(status, message) {
-  const indicator = document.getElementById('syncIndicator');
-  const statusEl = document.getElementById('syncStatus');
-  if (!indicator || !statusEl) return;
-  
-  if (status === 'uploading') {
-    indicator.style.color = '#3b82f6';
-    statusEl.innerHTML = '⏫ 上传中...';
-  } else if (status === 'downloading') {
-    indicator.style.color = '#3b82f6';
-    statusEl.innerHTML = '⏬ 下载中...';
-  } else if (status === 'synced') {
-    indicator.style.color = '#10b981';
-    statusEl.innerHTML = '✓ 已同步';
-    setTimeout(() => {
-      if (statusEl.innerHTML === '✓ 已同步') {
-        statusEl.innerHTML = '就绪';
-        indicator.style.color = '#64748b';
-      }
-    }, 2000);
-  } else if (status === 'error') {
-    indicator.style.color = '#ef4444';
-    statusEl.innerHTML = '✗ ' + (message || '同步失败');
-  } else {
-    indicator.style.color = '#64748b';
-    statusEl.innerHTML = message || '就绪';
-  }
-}
-
-// Save current state to cloud
-async function saveToCloud() {
-  if (!supabaseClient || !AppState.currentUser) return;
-  
-  const userId = AppState.currentUser.id;
-  updateSyncStatus('uploading');
-  
-  try {
-    // Save all data types to cloud
-    const saves = [];
-    
-    // Todos
-    if (AppState.todos.length > 0) {
-      saves.push(supabaseClient.from('todos').upsert(
-        AppState.todos.map(t => ({ ...t, user_id: userId }))
-      ));
-    }
-    
-    // Habits  
-    if (AppState.habits.length > 0) {
-      saves.push(supabaseClient.from('habits').upsert(
-        AppState.habits.map(h => ({ ...h, user_id: userId }))
-      ));
-    }
-    
-    // Diaries
-    if (AppState.diaries.length > 0) {
-      saves.push(supabaseClient.from('diaries').upsert(
-        AppState.diaries.map(d => ({ ...d, user_id: userId }))
-      ));
-    }
-    
-    // Diet
-    const dietEntries = Object.entries(AppState.diet);
-    if (dietEntries.length > 0) {
-      saves.push(supabaseClient.from('diet').upsert(
-        dietEntries.map(([date, data]) => ({
-          ...data,
-          id: data.id || `${userId}_${date}`,
-          date,
-          user_id: userId
-        }))
-      ));
-    }
-    
-    // Events
-    if (AppState.events.length > 0) {
-      saves.push(supabaseClient.from('events').upsert(
-        AppState.events.map(e => ({ ...e, user_id: userId }))
-      ));
-    }
-    
-    if (saves.length > 0) {
-      await Promise.all(saves);
-      console.log('✅ Saved to cloud');
-      updateSyncStatus('synced');
-      
-      // Verify by reading back
-      const { data: verifyDiets } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
-      console.log('✅ Verified in cloud:', verifyDiets?.length || 0, 'diet entries');
-    } else {
-      updateSyncStatus('ready', '无数据');
-    }
-  } catch(e) {
-    console.warn('❌ Failed to save to cloud:', e);
-    updateSyncStatus('error', '上传失败');
+    console.log('🔄 Auto-syncing to Supabase...');
+    await autoSyncToSupabase();
   }
 }
 
@@ -757,26 +433,15 @@ async function saveToSupabase(table, data) {
 }
 
 function initToday() {
-  // Reset to today on page load
-  AppState.currentDate = new Date();
-  const today = Utils.formatDate(AppState.currentDate);
+  const today = Utils.formatDate(new Date());
   document.getElementById('currentDate').textContent = `${today.month}${today.date}日`;
   document.getElementById('currentWeekday').textContent = today.weekday;
-  
-  // Update date picker to today
-  const datePicker = document.getElementById('todayDatePicker');
-  if (datePicker) datePicker.value = today.full;
-  
   renderOverview(); renderReview();
 }
 
 function renderOverview() {
   // Use current selected date, not always today
   const currentDate = Utils.formatDate(AppState.currentDate).full;
-  console.log('📊 renderOverview - currentDate:', currentDate);
-  console.log('📊 AppState.diet:', AppState.diet);
-  console.log('📊 AppState.diet[currentDate]:', AppState.diet[currentDate]);
-  
   const todos = AppState.todos.filter(t => t.date === currentDate);
   const completed = todos.filter(t => t.completed).length;
   document.querySelector('#overviewTodos .overview-count').textContent = `${completed}/${todos.length}`;
@@ -1303,35 +968,12 @@ function updateTotalCal() {
   document.getElementById('totalCalories').textContent = get('breakfastCal')+get('lunchCal')+get('dinnerCal')+get('snackCal');
 }
 
-async function saveDiet() {
+function saveDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
-  console.log('💾 saveDiet - saving for date:', date);
-  
   const get = id => document.getElementById(id)?.value || '';
   const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
-  
-  // Generate unique id for this diet entry
-  const userId = AppState.currentUser?.id || 'local';
-  const dietId = `${userId}_${date}`;
-  
-  AppState.diet[date] = { 
-    id: dietId,
-    date: date,
-    breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, 
-    lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, 
-    dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, 
-    snack: {food:get('snackInput'),calories:getNum('snackCal')} 
-  };
-  
-  console.log('💾 saveDiet - AppState.diet:', AppState.diet);
-  
-  // IMPORTANT: Wait for save to complete (especially cloud upload)
-  await saveData(); 
-  
-  document.getElementById('dietModal').classList.remove('active'); 
-  renderOverview(); 
-  renderReview(); 
-  alert('饮食记录已保存并上传到云端！');
+  AppState.diet[date] = { breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, snack: {food:get('snackInput'),calories:getNum('snackCal')} };
+  saveData(); document.getElementById('dietModal').classList.remove('active'); renderOverview(); renderReview(); alert('饮食记录已保存！');
 }
 
 function renderDiaryList() {
@@ -1513,73 +1155,9 @@ function toggleTimer() {
 }
 function resetTimer() { clearInterval(timerInterval); running = false; timeLeft = duration*60; updateTimer(); document.getElementById('timerToggle').innerHTML = '<i class="fas fa-play"></i> 开始'; }
 
-// Global error handler
-window.addEventListener('error', (e) => {
-  console.error('❌ Global error:', e.message, e.filename, e.lineno);
-  alert('JS错误: ' + e.message + ' 在行 ' + e.lineno);
-});
-
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 DOM Content Loaded - Initializing...');
-  
-  // CRITICAL: Setup all button bindings FIRST (before any async operations)
-  // This ensures buttons work even if cloud sync fails
-  console.log('🔘 Setting up button bindings...');
-  
-  // Navigation
-  document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
-  
-  // Quick actions - with debug
-  const todoBtn = document.getElementById('todoBtn');
-  const dietBtn = document.getElementById('dietBtn');
-  const habitBtn = document.getElementById('habitBtn');
-  const settingsBtn = document.getElementById('settingsBtn');
-  
-  console.log('Found buttons:', { todoBtn: !!todoBtn, dietBtn: !!dietBtn, habitBtn: !!habitBtn, settingsBtn: !!settingsBtn });
-  
-  if (todoBtn) todoBtn.addEventListener('click', () => { 
-    document.getElementById('todoModal').classList.add('active'); 
-    document.getElementById('todoDate').value = Utils.formatDate(AppState.currentDate).full; 
-    renderTodos(); 
-  });
-  
-  if (habitBtn) habitBtn.addEventListener('click', () => { 
-    document.getElementById('habitModal').classList.add('active'); 
-    document.getElementById('habitDate').value = Utils.formatDate(AppState.currentDate).full; 
-    renderHabits(); 
-  });
-  
-  if (dietBtn) dietBtn.addEventListener('click', () => { 
-    console.log('🍽️ Diet button clicked');
-    document.getElementById('dietModal').classList.add('active'); 
-    document.getElementById('dietDate').value = Utils.formatDate(AppState.currentDate).full; 
-    loadDiet(); 
-  });
-  
-  document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
-  
-  // Settings
-  if (settingsBtn) settingsBtn.addEventListener('click', () => {
-    console.log('⚙️ Settings button clicked');
-    document.getElementById('settingsModal').classList.add('active');
-  });
-  document.getElementById('closeSettings')?.addEventListener('click', () => document.getElementById('settingsModal').classList.remove('active'));
-  
-  console.log('✅ Button bindings complete');
-  
-  try {
-    // Load local cache first (for fast display)
-    loadData();
-    initToday();
-    
-    // Then init Supabase - will download from cloud if logged in
-    await initSupabase();
-    
-    console.log('✅ Initialization complete');
-  } catch(e) {
-    console.error('❌ Initialization failed:', e);
-  }
+  await initSupabase(); loadData(); initToday();
   
   // Navigation
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
@@ -1621,6 +1199,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
   
+  // Quick actions
+  document.getElementById('todoBtn')?.addEventListener('click', () => { 
+    document.getElementById('todoModal').classList.add('active'); 
+    document.getElementById('todoDate').value = Utils.formatDate(AppState.currentDate).full; 
+    renderTodos(); 
+  });
+  document.getElementById('habitBtn')?.addEventListener('click', () => { 
+    document.getElementById('habitModal').classList.add('active'); 
+    document.getElementById('habitDate').value = Utils.formatDate(AppState.currentDate).full; 
+    renderHabits(); 
+  });
+  document.getElementById('dietBtn')?.addEventListener('click', () => { 
+    document.getElementById('dietModal').classList.add('active'); 
+    document.getElementById('dietDate').value = Utils.formatDate(AppState.currentDate).full; 
+    loadDiet(); 
+  });
+  document.getElementById('pomodoroBtn')?.addEventListener('click', () => document.getElementById('pomodoroModal').classList.add('active'));
+  
   // Close modals
   document.getElementById('closeTodo')?.addEventListener('click', () => document.getElementById('todoModal').classList.remove('active'));
   document.getElementById('closeHabit')?.addEventListener('click', () => document.getElementById('habitModal').classList.remove('active'));
@@ -1631,11 +1227,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('editDiaryBtn')?.addEventListener('click', editDiary);
   document.getElementById('deleteDiaryBtn')?.addEventListener('click', deleteDiary);
   document.getElementById('closeAddEvent')?.addEventListener('click', () => document.getElementById('addEventModal').classList.remove('active'));
+  document.getElementById('closeSettings')?.addEventListener('click', () => document.getElementById('settingsModal').classList.remove('active'));
   
   // Actions
   document.getElementById('addTodoBtn')?.addEventListener('click', () => { addTodo(document.getElementById('todoInput').value); document.getElementById('todoInput').value = ''; });
   document.getElementById('addHabitBtn')?.addEventListener('click', () => { addHabit(document.getElementById('habitInput').value, document.getElementById('habitIcon').value); document.getElementById('habitInput').value = ''; });
-  document.getElementById('saveDiet')?.addEventListener('click', () => saveDiet());
+  document.getElementById('saveDiet')?.addEventListener('click', saveDiet);
   document.getElementById('addDiaryBtn')?.addEventListener('click', () => { AppState.currentDiaryId = null; document.getElementById('diaryModal').classList.add('active'); document.getElementById('diaryDate').value = Utils.formatDate(new Date()).full; document.getElementById('diaryTitle').value = ''; document.getElementById('diaryContent').value = ''; });
   document.getElementById('saveDiaryBtn')?.addEventListener('click', saveDiary);
   document.getElementById('addEventFromCalendar')?.addEventListener('click', () => { document.getElementById('addEventModal').classList.add('active'); document.getElementById('newEventDate').value = document.getElementById('calendarDatePicker').value || Utils.formatDate(new Date()).full; });
@@ -1650,21 +1247,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('exportData')?.addEventListener('click', exportData);
   document.getElementById('importData')?.addEventListener('click', () => document.getElementById('importFile').click());
   document.getElementById('importFile')?.addEventListener('change', importData);
-  document.getElementById('clearAllData')?.addEventListener('click', clearAllData);
-  
-  // Manual sync button
-  document.getElementById('forceSyncBtn')?.addEventListener('click', async () => {
-    if (!AppState.currentUser) {
-      alert('请先登录');
-      return;
-    }
-    updateSyncStatus('downloading');
-    await loadFromCloud();
-    alert('同步完成！');
-  });
-  
-  // Diagnose button
-  document.getElementById('diagnoseBtn')?.addEventListener('click', diagnoseCloudData);
   document.getElementById('clearData')?.addEventListener('click', clearData);
   
   // Diary mood
