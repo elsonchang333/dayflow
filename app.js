@@ -7,7 +7,7 @@ let isOnline = false;
 
 const AppState = {
   currentPage: 'today',
-  habits: [], todos: [], diet: {}, events: [], diaries: [],
+  habits: [], todos: [], diets: [], events: [], diaries: [],
   currentDate: new Date(), todoFilter: 'all', selectedDiaryMood: 3,
   currentDiaryId: null,
   currentUser: null,
@@ -118,10 +118,10 @@ async function login(email, password) {
     
     // Check if there's local data that needs to be synced first
     const hasLocalData = AppState.todos.length > 0 || AppState.habits.length > 0 || 
-                         AppState.diaries.length > 0 || Object.keys(AppState.diet).length > 0;
+                         AppState.diaries.length > 0 || AppState.diets.length > 0;
     
     if (hasLocalData) {
-      const shouldSync = confirm(`检测到本地有 ${AppState.todos.length} 条待办、${AppState.habits.length} 个习惯、${AppState.diaries.length} 篇日记、${Object.keys(AppState.diet).length} 天饮食记录。\n\n是否上传到云端？\n（选择"确定"上传本地数据，选择"取消"下载云端数据）`);
+      const shouldSync = confirm(`检测到本地有 ${AppState.todos.length} 条待办、${AppState.habits.length} 个习惯、${AppState.diaries.length} 篇日记、${AppState.diets.length} 条饮食记录。\n\n是否上传到云端？\n（选择"确定"上传本地数据，选择"取消"下载云端数据）`);
       
       if (shouldSync) {
         console.log('📤 用户选择：上传本地数据到云端');
@@ -169,15 +169,10 @@ async function syncLocalDataToSupabase() {
       if (error) console.warn('Failed to sync diary:', error);
     }
     
-    // Sync diet - ensure each diet entry has an id
-    for (const [date, dietData] of Object.entries(AppState.diet)) {
-      const dietWithUser = { 
-        ...dietData, 
-        id: dietData.id || `${userId}_${date}`, // Create unique id if not exists
-        date, 
-        user_id: userId 
-      };
-      const { error } = await supabaseClient.from('diet').upsert(dietWithUser);
+    // Sync diets (new array format)
+    for (const diet of AppState.diets) {
+      const dietWithUser = { ...diet, user_id: userId };
+      const { error } = await supabaseClient.from('diets').upsert(dietWithUser);
       if (error) console.warn('Failed to sync diet:', error);
     }
     
@@ -199,7 +194,7 @@ async function logout() {
     await supabaseClient.auth.signOut();
     AppState.currentUser = null;
     AppState.todos = []; AppState.habits = []; AppState.diaries = [];
-    AppState.diet = {}; AppState.events = [];
+    AppState.diets = []; AppState.events = [];
     alert('✅ 已退出登录');
     showAuthModal();
   } catch(e) {
@@ -258,13 +253,12 @@ async function loadUserData() {
       console.log('✅ Loaded', diaries.length, 'diaries');
     }
     
-    // Load diet
-    const { data: diets, error: dietsError } = await supabaseClient.from('diet').select('*').eq('user_id', userId);
-    if (dietsError) console.warn('❌ Failed to load diet:', dietsError);
+    // Load diets (new array format)
+    const { data: diets, error: dietsError } = await supabaseClient.from('diets').select('*').eq('user_id', userId);
+    if (dietsError) console.warn('❌ Failed to load diets:', dietsError);
     else if (diets) {
-      AppState.diet = {};
-      diets.forEach(d => AppState.diet[d.date] = d);
-      console.log('✅ Loaded', diets.length, 'diet entries');
+      AppState.diets = diets;
+      console.log('✅ Loaded', diets.length, 'diets');
     }
     
     // Load events
@@ -280,7 +274,7 @@ async function loadUserData() {
     // Save to local storage (without triggering cloud sync)
     LocalDB.set('todos', AppState.todos);
     LocalDB.set('habits', AppState.habits);
-    LocalDB.set('diet', AppState.diet);
+    LocalDB.set('diets', AppState.diets);
     LocalDB.set('events', AppState.events);
     LocalDB.set('diaries', AppState.diaries);
     console.log('💾 Saved cloud data to local storage');
@@ -325,7 +319,29 @@ async function syncToSupabase() {
 function loadData() {
   AppState.todos = LocalDB.get('todos') || [];
   AppState.habits = LocalDB.get('habits') || [];
-  AppState.diet = LocalDB.get('diet') || {};
+  // Support both old (object) and new (array) format
+  const oldDiet = LocalDB.get('diet');
+  const newDiets = LocalDB.get('diets');
+  if (newDiets) {
+    AppState.diets = newDiets;
+  } else if (oldDiet) {
+    // Convert old format to new
+    AppState.diets = Object.entries(oldDiet).map(([date, data]) => ({
+      id: data.id || Utils.generateId(),
+      date: date,
+      breakfast: data.breakfast?.food || '',
+      breakfastCal: data.breakfast?.calories || 0,
+      lunch: data.lunch?.food || '',
+      lunchCal: data.lunch?.calories || 0,
+      dinner: data.dinner?.food || '',
+      dinnerCal: data.dinner?.calories || 0,
+      snack: data.snack?.food || '',
+      snackCal: data.snack?.calories || 0,
+      created_at: data.created_at || new Date().toISOString()
+    }));
+  } else {
+    AppState.diets = [];
+  }
   AppState.events = LocalDB.get('events') || [];
   AppState.diaries = LocalDB.get('diaries') || [];
 }
@@ -333,7 +349,7 @@ function loadData() {
 async function saveData() {
   LocalDB.set('todos', AppState.todos);
   LocalDB.set('habits', AppState.habits);
-  LocalDB.set('diet', AppState.diet);
+  LocalDB.set('diets', AppState.diets);
   LocalDB.set('events', AppState.events);
   LocalDB.set('diaries', AppState.diaries);
   
@@ -383,18 +399,12 @@ async function autoSyncToSupabase() {
       else console.log('✅ Synced', AppState.diaries.length, 'diaries');
     }
     
-    // Diet
-    const dietEntries = Object.entries(AppState.diet);
-    if (dietEntries.length > 0) {
-      const dietsWithUser = dietEntries.map(([date, data]) => ({ 
-        ...data, 
-        id: data.id || `${userId}_${date}`,
-        date, 
-        user_id: userId 
-      }));
-      const { error } = await supabaseClient.from('diet').upsert(dietsWithUser);
-      if (error) console.warn('❌ Failed to sync diet:', error);
-      else console.log('✅ Synced', dietEntries.length, 'diet entries');
+    // Diets (new array format)
+    if (AppState.diets.length > 0) {
+      const dietsWithUser = AppState.diets.map(d => ({ ...d, user_id: userId }));
+      const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
+      if (error) console.warn('❌ Failed to sync diets:', error);
+      else console.log('✅ Synced', AppState.diets.length, 'diets');
     }
     
     // Events
@@ -456,9 +466,9 @@ function renderOverview() {
   const checked = AppState.habits.filter(h => (h.checkIns||[]).includes(currentDate)).length;
   document.querySelector('#overviewHabits .overview-count').textContent = `${checked}/${AppState.habits.length}`;
   
-  const diet = AppState.diet[currentDate];
+  const diet = AppState.diets.find(d => d.date === currentDate);
   let cal = 0;
-  if (diet) cal = (diet.breakfast?.calories||0)+(diet.lunch?.calories||0)+(diet.dinner?.calories||0)+(diet.snack?.calories||0);
+  if (diet) cal = (diet.breakfastCal || 0) + (diet.lunchCal || 0) + (diet.dinnerCal || 0) + (diet.snackCal || 0);
   document.querySelector('#overviewDiet .overview-count').textContent = cal;
   
   const events = AppState.events.filter(e => e.date === currentDate).length;
@@ -485,13 +495,13 @@ function renderReview() {
     html += '</ul></div>';
   }
   
-  const currentDiet = AppState.diet[currentDate];
+  const currentDiet = AppState.diets.find(d => d.date === currentDate);
   if (currentDiet) {
     const meals = [];
-    if (currentDiet.breakfast?.food) meals.push(`早餐：${currentDiet.breakfast.food}`);
-    if (currentDiet.lunch?.food) meals.push(`午餐：${currentDiet.lunch.food}`);
-    if (currentDiet.dinner?.food) meals.push(`晚餐：${currentDiet.dinner.food}`);
-    if (currentDiet.snack?.food) meals.push(`加餐：${currentDiet.snack.food}`);
+    if (currentDiet.breakfast) meals.push(`早餐：${currentDiet.breakfast}`);
+    if (currentDiet.lunch) meals.push(`午餐：${currentDiet.lunch}`);
+    if (currentDiet.dinner) meals.push(`晚餐：${currentDiet.dinner}`);
+    if (currentDiet.snack) meals.push(`加餐：${currentDiet.snack}`);
     if (meals.length) {
       html += `<div class="review-section"><h4>🍽️ 饮食记录 (${meals.length}餐)</h4><ul>`;
       html += meals.map(m => `<li>${m}</li>`).join('');
@@ -788,15 +798,15 @@ function renderDietStats(dates) {
   const mealData = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
   
   dates.forEach(date => {
-    const diet = AppState.diet[date];
+    const diet = AppState.diets.find(d => d.date === date);
     if (diet) {
-      const dayCal = (diet.breakfast?.calories || 0) + (diet.lunch?.calories || 0) + (diet.dinner?.calories || 0) + (diet.snack?.calories || 0);
+      const dayCal = (diet.breakfastCal || 0) + (diet.lunchCal || 0) + (diet.dinnerCal || 0) + (diet.snackCal || 0);
       if (dayCal > 0) {
         totalCal += dayCal; days++;
-        mealData.breakfast += diet.breakfast?.calories || 0;
-        mealData.lunch += diet.lunch?.calories || 0;
-        mealData.dinner += diet.dinner?.calories || 0;
-        mealData.snack += diet.snack?.calories || 0;
+        mealData.breakfast += diet.breakfastCal || 0;
+        mealData.lunch += diet.lunchCal || 0;
+        mealData.dinner += diet.dinnerCal || 0;
+        mealData.snack += diet.snackCal || 0;
       }
     }
   });
@@ -959,14 +969,35 @@ function checkHabit(id) {
   saveData(); renderHabits(); renderOverview(); renderReview();
 }
 
+// Load diet for a specific date
 function loadDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
-  const diet = AppState.diet[date] || { breakfast: {food:'',calories:0}, lunch: {food:'',calories:0}, dinner: {food:'',calories:0}, snack: {food:'',calories:0} };
-  const set = (id,val) => { const el = document.getElementById(id); if(el) el.value = val; };
-  set('breakfastInput', diet.breakfast?.food||''); set('breakfastCal', diet.breakfast?.calories||'');
-  set('lunchInput', diet.lunch?.food||''); set('lunchCal', diet.lunch?.calories||'');
-  set('dinnerInput', diet.dinner?.food||''); set('dinnerCal', diet.dinner?.calories||'');
-  set('snackInput', diet.snack?.food||''); set('snackCal', diet.snack?.calories||'');
+  
+  // Find diet record for this date
+  const diet = AppState.diets.find(d => d.date === date);
+  
+  const set = (id, val) => { 
+    const el = document.getElementById(id); 
+    if (el) el.value = val; 
+  };
+  
+  if (diet) {
+    set('breakfastInput', diet.breakfast || '');
+    set('breakfastCal', diet.breakfastCal || '');
+    set('lunchInput', diet.lunch || '');
+    set('lunchCal', diet.lunchCal || '');
+    set('dinnerInput', diet.dinner || '');
+    set('dinnerCal', dinnerCal || '');
+    set('snackInput', diet.snack || '');
+    set('snackCal', diet.snackCal || '');
+  } else {
+    // Clear fields if no record
+    set('breakfastInput', ''); set('breakfastCal', '');
+    set('lunchInput', ''); set('lunchCal', '');
+    set('dinnerInput', ''); set('dinnerCal', '');
+    set('snackInput', ''); set('snackCal', '');
+  }
+  
   updateTotalCal();
 }
 
@@ -975,30 +1006,42 @@ function updateTotalCal() {
   document.getElementById('totalCalories').textContent = get('breakfastCal')+get('lunchCal')+get('dinnerCal')+get('snackCal');
 }
 
+// Save diet - same pattern as addTodo
 async function saveDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
-  const get = id => document.getElementById(id)?.value || '';
+  
+  const getVal = id => document.getElementById(id)?.value?.trim() || '';
   const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
   
-  // Generate unique id for diet entry (like todos)
-  const dietId = Utils.generateId();
+  // Check if record already exists for this date
+  const existingIndex = AppState.diets.findIndex(d => d.date === date);
   
-  AppState.diet[date] = { 
-    id: dietId,  // ← 添加 id！
-    date: date,  // ← 添加 date！
-    breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, 
-    lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, 
-    dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, 
-    snack: {food:get('snackInput'),calories:getNum('snackCal')},
-    created_at: new Date().toISOString()  // ← 添加时间戳！
+  const dietData = {
+    id: existingIndex >= 0 ? AppState.diets[existingIndex].id : Utils.generateId(),
+    date: date,
+    breakfast: getVal('breakfastInput'),
+    breakfastCal: getNum('breakfastCal'),
+    lunch: getVal('lunchInput'),
+    lunchCal: getNum('lunchCal'),
+    dinner: getVal('dinnerInput'),
+    dinnerCal: getNum('dinnerCal'),
+    snack: getVal('snackInput'),
+    snackCal: getNum('snackCal'),
+    created_at: existingIndex >= 0 ? AppState.diets[existingIndex].created_at : new Date().toISOString()
   };
   
-  // Wait for save to complete (especially cloud upload)
+  if (existingIndex >= 0) {
+    AppState.diets[existingIndex] = dietData;  // Update existing
+  } else {
+    AppState.diets.unshift(dietData);  // Add new
+  }
+  
+  // Save to local and cloud
   await saveData();
   
-  document.getElementById('dietModal').classList.remove('active'); 
-  renderOverview(); 
-  renderReview(); 
+  document.getElementById('dietModal').classList.remove('active');
+  renderOverview();
+  renderReview();
   alert('饮食记录已保存并上传到云端！');
 }
 
@@ -1151,7 +1194,7 @@ function importData(e) {
     try {
       const data = JSON.parse(event.target.result);
       if (confirm('确定导入？这将覆盖当前数据')) {
-        AppState.todos = data.todos || []; AppState.habits = data.habits || []; AppState.diet = data.diet || {};
+        AppState.todos = data.todos || []; AppState.habits = data.habits || []; AppState.diets = data.diets || data.diet || [];
         AppState.events = data.events || []; AppState.diaries = data.diaries || [];
         saveData(); location.reload();
       }
@@ -1162,7 +1205,7 @@ function importData(e) {
 
 function clearData() {
   if (confirm('警告：这将删除所有数据！') && confirm('再次确认：无法恢复！')) {
-    AppState.todos = []; AppState.habits = []; AppState.diet = {}; AppState.events = []; AppState.diaries = [];
+    AppState.todos = []; AppState.habits = []; AppState.diets = []; AppState.events = []; AppState.diaries = [];
     saveData(); location.reload();
   }
 }
