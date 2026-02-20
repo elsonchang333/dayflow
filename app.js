@@ -135,17 +135,98 @@ function goToTodayDate() {
     renderAll();
 }
 
-function showDatePicker() {
-    const dateInput = document.getElementById('todayDateInput');
-    if (dateInput) {
-        // For mobile, we need to focus and click
-        dateInput.style.pointerEvents = 'auto';
-        dateInput.focus();
-        dateInput.click();
-        // Trigger the native date picker
-        if (typeof dateInput.showPicker === 'function') {
-            dateInput.showPicker();
+// ==================== Calendar Modal ====================
+let calendarCurrentMonth = new Date();
+
+function openCalendarModal() {
+    calendarCurrentMonth = new Date(currentDate);
+    renderCalendar();
+    openModal('calendarModal');
+}
+
+function changeCalendarMonth(delta) {
+    calendarCurrentMonth.setMonth(calendarCurrentMonth.getMonth() + delta);
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const year = calendarCurrentMonth.getFullYear();
+    const month = calendarCurrentMonth.getMonth();
+    
+    // Update title
+    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    document.getElementById('calendarMonthTitle').textContent = `${year}年${months[month]}`;
+    
+    // Get first day of month
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstDay.getDay();
+    
+    // Generate calendar days
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+    
+    // Previous month padding
+    for (let i = 0; i < startDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.style.height = '44px';
+        grid.appendChild(emptyCell);
+    }
+    
+    // Days of current month
+    const today = new Date();
+    const currentDateStr = formatDate(currentDate).full;
+    
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(year, month, day);
+        const dateStr = formatDate(date).full;
+        const isToday = dateStr === formatDate(today).full;
+        const isSelected = dateStr === currentDateStr;
+        
+        const dayCell = document.createElement('button');
+        dayCell.style.cssText = `
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: ${isSelected ? 'var(--primary)' : isToday ? 'var(--bg)' : 'white'};
+            color: ${isSelected ? 'white' : isToday ? 'var(--primary)' : 'var(--text)'};
+            box-shadow: ${isSelected ? '0 4px 12px rgba(99, 102, 241, 0.4)' : '0 2px 4px rgba(0,0,0,0.05)'};
+            position: relative;
+        `;
+        dayCell.textContent = day;
+        
+        // Check if has data
+        const hasTodo = todos.some(t => t.date === dateStr);
+        const hasHabit = habits.some(h => h.checkIns.includes(dateStr));
+        const hasDiet = diets.some(d => d.date === dateStr);
+        const hasDiary = diaries.some(d => d.date === dateStr);
+        
+        if (hasTodo || hasHabit || hasDiet || hasDiary) {
+            const dot = document.createElement('div');
+            dot.style.cssText = `
+                position: absolute;
+                bottom: 4px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: ${isSelected ? 'white' : 'var(--primary)'};
+            `;
+            dayCell.appendChild(dot);
         }
+        
+        dayCell.onclick = () => {
+            currentDate = new Date(date);
+            updateDate();
+            renderAll();
+            closeModal('calendarModal');
+        };
+        
+        grid.appendChild(dayCell);
     }
 }
 

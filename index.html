@@ -934,10 +934,13 @@
         <!-- Date Selector -->
         <div class="section" style="margin-top: 16px;">
             <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                <button class="settings-btn" onclick="changeTodayDate(-7)" style="padding: 10px 8px; min-width: 36px; font-size: 12px;" title="上週">
+                    <i class="fas fa-angle-double-left"></i>
+                </button>
                 <button class="settings-btn" onclick="changeTodayDate(-1)" style="padding: 10px 14px; min-width: 44px;">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <div style="flex: 1; text-align: center; cursor: pointer;" onclick="showDatePicker()">
+                <div style="flex: 1; text-align: center; cursor: pointer; padding: 8px; border-radius: 12px; transition: background 0.2s;" onclick="openCalendarModal()" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
                     <div style="font-size: 24px; font-weight: 700; color: var(--text);" id="todayDateDisplay">
                         --月--日
                     </div>
@@ -945,22 +948,66 @@
                         星期-
                     </div>
                     <div style="font-size: 11px; color: var(--primary); margin-top: 4px;">
-                        <i class="fas fa-calendar-alt"></i> 点击选择日期
+                        <i class="fas fa-calendar-alt"></i> 点击打开日历
                     </div>
                 </div>
                 <button class="settings-btn" onclick="changeTodayDate(1)" style="padding: 10px 14px; min-width: 44px;">
                     <i class="fas fa-chevron-right"></i>
                 </button>
-            </div>
-            <!-- Hidden date input -->
-            <input type="date" id="todayDateInput" style="position: absolute; opacity: 0; pointer-events: none;" onchange="onTodayDateChange()">
-            <div style="display: flex; gap: 10px; margin-top: 12px;">
-                <button class="settings-btn" onclick="showDatePicker()" style="flex: 1;">
-                    <i class="fas fa-calendar"></i> 选择日期
+                <button class="settings-btn" onclick="changeTodayDate(7)" style="padding: 10px 8px; min-width: 36px; font-size: 12px;" title="下週">
+                    <i class="fas fa-angle-double-right"></i>
                 </button>
-                <button class="settings-btn success" onclick="goToTodayDate()" style="white-space: nowrap;">
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <button class="settings-btn" onclick="changeTodayDate(-30)" style="flex: 1; font-size: 12px;">
+                    <i class="fas fa-arrow-left"></i> 上月
+                </button>
+                <button class="settings-btn" onclick="openCalendarModal()" style="flex: 1;">
+                    <i class="fas fa-calendar"></i> 日历
+                </button>
+                <button class="settings-btn success" onclick="goToTodayDate()" style="flex: 1;">
                     <i class="fas fa-calendar-day"></i> 今天
                 </button>
+                <button class="settings-btn" onclick="changeTodayDate(30)" style="flex: 1; font-size: 12px;">
+                    下月 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Calendar Modal -->
+        <div class="modal" id="calendarModal">
+            <div class="modal-content" style="max-height: 70vh;">
+                <div class="modal-header">
+                    <div class="modal-title">📅 选择日期</div>
+                    <button class="modal-close" onclick="closeModal('calendarModal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Month Navigation -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <button class="settings-btn" onclick="changeCalendarMonth(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div style="font-size: 18px; font-weight: 700;" id="calendarMonthTitle">2024年1月</div>
+                        <button class="settings-btn" onclick="changeCalendarMonth(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <!-- Weekday Headers -->
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px;">
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">日</div>
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">一</div>
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">二</div>
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">三</div>
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">四</div>
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">五</div>
+                        <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">六</div>
+                    </div>
+                    <!-- Calendar Grid -->
+                    <div id="calendarGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+                        <!-- Calendar days will be generated here -->
+                    </div>
+                    <button class="save-btn" onclick="closeModal('calendarModal')" style="margin-top: 20px;">关闭</button>
+                </div>
             </div>
         </div>
 
