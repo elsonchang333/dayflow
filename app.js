@@ -418,10 +418,15 @@ async function autoSyncToSupabase() {
     
     // Diets (new array format)
     if (AppState.diets.length > 0) {
+      console.log('DEBUG: userId =', userId, typeof userId);
+      console.log('DEBUG: first diet =', AppState.diets[0]);
       const dietsWithUser = AppState.diets.map(d => {
-        const { user_id, ...rest } = d; // Remove existing user_id to avoid duplication
+        const { user_id, ...rest } = d;
+        console.log('DEBUG: rest =', rest);
+        console.log('DEBUG: setting user_id to', userId);
         return { ...rest, user_id: userId };
       });
+      console.log('DEBUG: final dietsWithUser =', dietsWithUser);
       const { error } = await supabaseClient.from('diets').upsert(dietsWithUser);
       if (error) {
         console.warn('❌ Failed to sync diets:', error);
