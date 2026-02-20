@@ -103,6 +103,36 @@ function updateDate() {
     const today = formatDate(currentDate);
     document.getElementById('currentDate').textContent = today.month + today.date + '日';
     document.getElementById('currentWeekday').textContent = today.weekday;
+    
+    // Update date selector display
+    const dateDisplay = document.getElementById('todayDateDisplay');
+    const weekdayDisplay = document.getElementById('todayWeekdayDisplay');
+    const dateInput = document.getElementById('todayDateInput');
+    
+    if (dateDisplay) dateDisplay.textContent = today.month + today.date + '日';
+    if (weekdayDisplay) weekdayDisplay.textContent = today.weekday;
+    if (dateInput) dateInput.value = formatDateForInput(currentDate);
+}
+
+function changeTodayDate(days) {
+    currentDate.setDate(currentDate.getDate() + days);
+    updateDate();
+    renderAll();
+}
+
+function onTodayDateChange() {
+    const dateInput = document.getElementById('todayDateInput');
+    if (dateInput && dateInput.value) {
+        currentDate = new Date(dateInput.value);
+        updateDate();
+        renderAll();
+    }
+}
+
+function goToTodayDate() {
+    currentDate = new Date();
+    updateDate();
+    renderAll();
 }
 
 function renderAll() {

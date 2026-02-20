@@ -225,11 +225,37 @@
         }
         
         .todo-checkbox {
-            width: 24px;
-            height: 24px;
+            appearance: none;
+            width: 26px;
+            height: 26px;
             margin-right: 14px;
+            border: 3px solid var(--border);
+            border-radius: 8px;
             cursor: pointer;
-            accent-color: var(--primary);
+            position: relative;
+            transition: all 0.2s;
+            background: white;
+        }
+        
+        .todo-checkbox:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .todo-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        body.dark-mode .todo-checkbox {
+            background: var(--card);
+            border-color: var(--border);
         }
         
         .todo-text {
@@ -905,9 +931,35 @@
             </button>
         </div>
         
+        <!-- Date Selector -->
+        <div class="section" style="margin-top: 16px;">
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                <button class="settings-btn" onclick="changeTodayDate(-1)" style="padding: 10px 14px; min-width: 44px;">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div style="flex: 1; text-align: center;">
+                    <div style="font-size: 20px; font-weight: 700; color: var(--text);" id="todayDateDisplay">
+                        --月--日
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;" id="todayWeekdayDisplay">
+                        星期-
+                    </div>
+                </div>
+                <button class="settings-btn" onclick="changeTodayDate(1)" style="padding: 10px 14px; min-width: 44px;">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+                <input type="date" id="todayDateInput" class="input-field" style="flex: 1; text-align: center;" onchange="onTodayDateChange()">
+                <button class="settings-btn success" onclick="goToTodayDate()" style="white-space: nowrap;">
+                    <i class="fas fa-calendar-day"></i> 今天
+                </button>
+            </div>
+        </div>
+
         <!-- Overview -->
         <div class="overview">
-            <div class="overview-title">📊 今日总览</div>
+            <div class="overview-title">📊 当日总览</div>
             <div class="overview-grid">
                 <div class="overview-card" onclick="openTodoModal()">
                     <div class="overview-icon">📝</div>
