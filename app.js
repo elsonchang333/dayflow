@@ -49,43 +49,19 @@ async function initSupabase() {
     
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    let hasLoadedFromCloud = false;
-    
-    // Listen for auth state changes FIRST (before checking getUser)
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 Auth state changed:', event);
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        if (hasLoadedFromCloud) {
-          console.log('⏭️ Already loaded from cloud, skipping');
-          return;
-        }
-        hasLoadedFromCloud = true;
-        AppState.currentUser = session.user;
-        console.log('✅ Session active:', session.user.email);
-        hideAuthModal();
-        console.log('☁️ Loading data from cloud (auth change)...');
-        await loadFromCloud();
-      }
-    });
-    
-    // Also check getUser() for immediate session
+    // Check if user is already logged in
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user && !hasLoadedFromCloud) {
-      hasLoadedFromCloud = true;
+    if (user) {
       AppState.currentUser = user;
       console.log('✅ User already logged in:', user.email);
       hideAuthModal();
-      console.log('☁️ Loading data from cloud (getUser)...');
+      
+      // Load from cloud
+      console.log('☁️ Loading data from cloud...');
       await loadFromCloud();
-    } else if (!user) {
-      console.log('👤 No user logged in (getUser)');
-      // Don't show auth modal immediately, wait for onAuthStateChange
-      setTimeout(() => {
-        if (!hasLoadedFromCloud && !AppState.currentUser) {
-          console.log('👤 Confirmed: no user after timeout');
-          showAuthModal();
-        }
-      }, 2000);
+    } else {
+      console.log('👤 No user logged in');
+      showAuthModal();
     }
     
     isOnline = true; 
@@ -314,24 +290,24 @@ async function loadFromCloud() {
     const userId = AppState.currentUser.id;
     console.log('☁️ Loading from cloud for user:', userId);
     
-    // Load all data from cloud
-    const [{ data: todos }, { data: habits }, { data: diaries }, { data: diets }, { data: events }] = await Promise.all([
-      supabaseClient.from('todos').select('*').eq('user_id', userId),
-      supabaseClient.from('habits').select('*').eq('user_id', userId),
-      supabaseClient.from('diaries').select('*').eq('user_id', userId),
-      supabaseClient.from('diet').select('*').eq('user_id', userId),
-      supabaseClient.from('events').select('*').eq('user_id', userId)
+    // Load all data from cloud (with individual error handling)
+    const [todosRes, habitsRes, diariesRes, dietsRes, eventsRes] = await Promise.all([
+      supabaseClient.from('todos').select('*').eq('user_id', userId).catch(e => { console.warn('Todos load failed:', e); return { data: [] }; }),
+      supabaseClient.from('habits').select('*').eq('user_id', userId).catch(e => { console.warn('Habits load failed:', e); return { data: [] }; }),
+      supabaseClient.from('diaries').select('*').eq('user_id', userId).catch(e => { console.warn('Diaries load failed:', e); return { data: [] }; }),
+      supabaseClient.from('diet').select('*').eq('user_id', userId).catch(e => { console.warn('Diet load failed:', e); return { data: [] }; }),
+      supabaseClient.from('events').select('*').eq('user_id', userId).catch(e => { console.warn('Events load failed:', e); return { data: [] }; })
     ]);
     
     // OVERWRITE local state with cloud data
-    AppState.todos = todos || [];
-    AppState.habits = habits || [];
-    AppState.diaries = diaries || [];
-    AppState.events = events || [];
+    AppState.todos = todosRes?.data || [];
+    AppState.habits = habitsRes?.data || [];
+    AppState.diaries = diariesRes?.data || [];
+    AppState.events = eventsRes?.data || [];
     
     AppState.diet = {};
-    if (diets) {
-      diets.forEach(d => AppState.diet[d.date] = d);
+    if (dietsRes?.data) {
+      dietsRes.data.forEach(d => AppState.diet[d.date] = d);
     }
     
     console.log('✅ Loaded from cloud:');
@@ -368,6 +344,9 @@ async function loadFromCloud() {
   } catch(e) {
     console.error('❌ Failed to load from cloud:', e);
     updateSyncStatus('error', '下载失败');
+    // Still render with local data
+    renderOverview();
+    renderReview();
   }
 }
 
