@@ -460,7 +460,8 @@ async function saveToSupabase(table, data) {
   if (!supabaseClient || !AppState.currentUser) return;
   
   try {
-    const dataWithUser = { ...data, user_id: AppState.currentUser.id };
+    const { user_id, ...rest } = data;
+    const dataWithUser = { ...rest, user_id: AppState.currentUser.id };
     const { error } = await supabaseClient.from(table).upsert(dataWithUser);
     if (error) console.warn(`Failed to save ${table}:`, error);
   } catch(e) {
