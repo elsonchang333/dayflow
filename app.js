@@ -972,8 +972,25 @@ function saveDiet() {
   const date = document.getElementById('dietDate')?.value || Utils.formatDate(new Date()).full;
   const get = id => document.getElementById(id)?.value || '';
   const getNum = id => parseInt(document.getElementById(id)?.value) || 0;
-  AppState.diet[date] = { breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, snack: {food:get('snackInput'),calories:getNum('snackCal')} };
-  saveData(); document.getElementById('dietModal').classList.remove('active'); renderOverview(); renderReview(); alert('饮食记录已保存！');
+  
+  // Generate unique id for diet entry (like todos)
+  const dietId = Utils.generateId();
+  
+  AppState.diet[date] = { 
+    id: dietId,  // ← 添加 id！
+    date: date,  // ← 添加 date！
+    breakfast: {food:get('breakfastInput'),calories:getNum('breakfastCal')}, 
+    lunch: {food:get('lunchInput'),calories:getNum('lunchCal')}, 
+    dinner: {food:get('dinnerInput'),calories:getNum('dinnerCal')}, 
+    snack: {food:get('snackInput'),calories:getNum('snackCal')},
+    created_at: new Date().toISOString()  // ← 添加时间戳！
+  };
+  
+  saveData(); 
+  document.getElementById('dietModal').classList.remove('active'); 
+  renderOverview(); 
+  renderReview(); 
+  alert('饮食记录已保存！');
 }
 
 function renderDiaryList() {
