@@ -6,6 +6,26 @@
     <title>DayFlow - 每日效率管理</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --secondary: #f472b6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --shadow-hover: 0 8px 30px rgba(0,0,0,0.12);
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --gradient-4: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -15,73 +35,101 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            padding-bottom: 80px;
+            background: var(--bg);
+            padding-bottom: 90px;
+            color: var(--text);
         }
         
-        /* Header */
+        /* Header - Glassmorphism */
         .header {
-            background: white;
-            padding: 20px;
+            background: var(--gradient-1);
+            padding: 40px 20px 30px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 0 0 30px 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
         }
         
         .date-main {
-            font-size: 32px;
-            font-weight: bold;
-            color: #1e293b;
+            font-size: 42px;
+            font-weight: 800;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         
         .date-sub {
             font-size: 16px;
-            color: #64748b;
-            margin-top: 4px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 8px;
+            font-weight: 500;
         }
         
-        /* Quick Actions */
+        /* Quick Actions - Floating Cards */
         .quick-actions {
             display: flex;
             justify-content: space-around;
-            padding: 16px;
+            padding: 20px 16px;
             gap: 12px;
+            margin-top: -20px;
+            position: relative;
+            z-index: 10;
         }
         
         .quick-btn {
-            background: white;
+            background: var(--card);
             border: none;
-            border-radius: 16px;
-            padding: 16px 8px;
+            border-radius: 20px;
+            padding: 20px 8px;
             text-align: center;
             flex: 1;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .quick-btn:active {
+            transform: scale(0.95);
         }
         
         .quick-icon {
-            font-size: 28px;
+            font-size: 32px;
             margin-bottom: 8px;
         }
         
         .quick-text {
             font-size: 12px;
-            color: #64748b;
+            color: var(--text-secondary);
+            font-weight: 600;
         }
         
-        /* Overview */
+        /* Overview - Glass Card */
         .overview {
-            background: white;
-            margin: 16px;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: var(--card);
+            margin: 0 16px 16px;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
         }
         
         .overview-title {
             font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #1e293b;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .overview-grid {
@@ -91,11 +139,24 @@
         }
         
         .overview-card {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 16px 8px;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+            border-radius: 16px;
+            padding: 16px 4px;
             text-align: center;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .overview-card:nth-child(2) {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+        }
+        
+        .overview-card:nth-child(3) {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        }
+        
+        .overview-card:nth-child(4) {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
         }
         
         .overview-icon {
@@ -104,64 +165,90 @@
         }
         
         .overview-count {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1e293b;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text);
         }
         
         .overview-label {
-            font-size: 12px;
-            color: #64748b;
+            font-size: 11px;
+            color: var(--text-secondary);
             margin-top: 4px;
+            font-weight: 600;
         }
         
-        /* Sections */
+        /* Sections - Modern Cards */
         .section {
-            background: white;
+            background: var(--card);
             margin: 16px;
-            margin-top: 0;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
         }
         
         .section-title {
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-action {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 12px;
-            color: #1e293b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         
         /* Todo Item */
         .todo-item {
             display: flex;
             align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border);
         }
         
         .todo-checkbox {
             width: 24px;
             height: 24px;
-            margin-right: 12px;
+            margin-right: 14px;
             cursor: pointer;
+            accent-color: var(--primary);
         }
         
         .todo-text {
             flex: 1;
             font-size: 16px;
-            color: #1e293b;
+            color: var(--text);
+            font-weight: 500;
         }
         
         .todo-completed {
             text-decoration: line-through;
-            color: #94a3b8;
+            color: var(--text-secondary);
         }
         
         .todo-delete {
-            color: #ef4444;
+            color: var(--danger);
             cursor: pointer;
-            padding: 4px;
+            padding: 8px;
+            font-size: 16px;
         }
         
         /* Habit Grid */
@@ -172,58 +259,104 @@
         }
         
         .habit-item {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 12px;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+            border-radius: 16px;
+            padding: 16px 8px;
             text-align: center;
             cursor: pointer;
             position: relative;
+            transition: all 0.3s ease;
         }
         
         .habit-checked {
-            background: #d1fae5;
+            background: var(--gradient-4);
         }
         
         .habit-icon {
-            font-size: 24px;
-            margin-bottom: 4px;
+            font-size: 28px;
+            margin-bottom: 6px;
         }
         
         .habit-name {
-            font-size: 12px;
-            color: #64748b;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
         }
         
         .habit-check {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            color: #10b981;
+            top: 6px;
+            right: 6px;
+            color: var(--success);
             font-size: 12px;
+            background: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Review Card */
+        .review-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 20px;
+            color: white;
+            margin-top: 16px;
+        }
+        
+        .review-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .review-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+        
+        .review-emoji {
+            font-size: 20px;
         }
         
         /* Add Button */
         .add-btn {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 16px;
         }
         
         .add-input {
             flex: 1;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
             font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .add-input:focus {
+            border-color: var(--primary);
         }
         
         .add-submit {
-            background: #3b82f6;
+            background: var(--primary);
             color: white;
             border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
+            border-radius: 12px;
+            padding: 14px 18px;
             cursor: pointer;
+            font-size: 18px;
         }
         
         /* Modal */
@@ -234,9 +367,10 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             z-index: 1000;
             justify-content: flex-end;
+            backdrop-filter: blur(4px);
         }
         
         .modal.active {
@@ -244,10 +378,10 @@
         }
         
         .modal-content {
-            background: white;
-            border-radius: 20px 20px 0 0;
+            background: var(--card);
+            border-radius: 30px 30px 0 0;
             width: 100%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
             animation: slideUp 0.3s ease;
         }
@@ -261,25 +395,31 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
         }
         
         .modal-title {
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 20px;
+            font-weight: 700;
         }
         
         .modal-close {
-            background: none;
+            background: var(--bg);
             border: none;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
-            color: #64748b;
+            color: var(--text-secondary);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .modal-body {
-            padding: 20px;
+            padding: 24px;
         }
         
         .input-group {
@@ -288,61 +428,163 @@
         
         .input-label {
             font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
             display: block;
         }
         
         .input-field {
             width: 100%;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
             font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .input-field:focus {
+            border-color: var(--primary);
         }
         
         .input-small {
             width: 120px;
+            margin-top: 8px;
         }
         
         .save-btn {
-            background: #3b82f6;
+            background: var(--gradient-1);
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 16px;
+            padding: 18px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             width: 100%;
             cursor: pointer;
             margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
         }
         
-        /* Bottom Nav */
+        /* Mood Selector */
+        .mood-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .mood-item {
+            background: var(--bg);
+            border-radius: 16px;
+            padding: 16px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .mood-item.selected {
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+            border-color: var(--secondary);
+        }
+        
+        .mood-emoji {
+            font-size: 32px;
+            margin-bottom: 4px;
+        }
+        
+        .mood-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        /* Diary Card */
+        .diary-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+        
+        .diary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .diary-date {
+            background: var(--gradient-1);
+            border-radius: 12px;
+            padding: 12px 16px;
+            text-align: center;
+            min-width: 60px;
+        }
+        
+        .diary-month {
+            font-size: 11px;
+            color: rgba(255,255,255,0.9);
+            font-weight: 600;
+        }
+        
+        .diary-day {
+            font-size: 24px;
+            font-weight: 800;
+            color: white;
+        }
+        
+        .diary-mood {
+            font-size: 32px;
+        }
+        
+        .diary-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .diary-content {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        /* Bottom Nav - Floating */
         .bottom-nav {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--card);
             display: flex;
             justify-content: space-around;
-            padding: 8px 0;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            padding: 8px;
+            border-radius: 30px;
+            box-shadow: var(--shadow-hover);
+            width: 90%;
+            max-width: 400px;
         }
         
         .nav-btn {
             background: none;
             border: none;
-            padding: 8px 16px;
+            padding: 12px 24px;
             text-align: center;
-            color: #94a3b8;
+            color: var(--text-secondary);
             cursor: pointer;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 600;
         }
         
         .nav-btn.active {
-            color: #3b82f6;
+            background: var(--gradient-1);
+            color: white;
         }
         
         .nav-icon {
@@ -357,41 +599,72 @@
         /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 40px;
-            color: #94a3b8;
+            padding: 60px 20px;
+            color: var(--text-secondary);
         }
         
         .empty-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
+            font-size: 64px;
+            margin-bottom: 20px;
         }
         
-        /* Stats Page */
+        .empty-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        /* Stats */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 16px;
             margin-bottom: 20px;
         }
         
         .stat-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
+            background: var(--card);
+            border-radius: 20px;
+            padding: 24px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
         }
         
         .stat-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: #3b82f6;
+            font-size: 36px;
+            font-weight: 800;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .stat-label {
             font-size: 14px;
-            color: #64748b;
-            margin-top: 4px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-weight: 600;
+        }
+        
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 20px rgba(244, 114, 182, 0.5);
+            cursor: pointer;
+            border: none;
+            z-index: 100;
         }
     </style>
 </head>
@@ -407,25 +680,25 @@
         <div class="quick-actions">
             <button class="quick-btn" onclick="openTodoModal()">
                 <div class="quick-icon">📝</div>
-                <div class="quick-text">待办事项</div>
+                <div class="quick-text">待办</div>
             </button>
             <button class="quick-btn" onclick="openDietModal()">
                 <div class="quick-icon">🍽️</div>
-                <div class="quick-text">饮食记录</div>
+                <div class="quick-text">饮食</div>
             </button>
             <button class="quick-btn">
                 <div class="quick-icon">🍅</div>
-                <div class="quick-text">番茄钟</div>
+                <div class="quick-text">番茄</div>
             </button>
             <button class="quick-btn" onclick="openHabitModal()">
                 <div class="quick-icon">✅</div>
-                <div class="quick-text">习惯打卡</div>
+                <div class="quick-text">习惯</div>
             </button>
         </div>
         
         <!-- Overview -->
         <div class="overview">
-            <div class="overview-title">📊 每日总览</div>
+            <div class="overview-title">📊 今日总览</div>
             <div class="overview-grid">
                 <div class="overview-card" onclick="openTodoModal()">
                     <div class="overview-icon">📝</div>
@@ -461,15 +734,21 @@
             <div class="section-title">✅ 习惯打卡</div>
             <div class="habit-grid" id="habitList"></div>
         </div>
+        
+        <!-- Today Review -->
+        <div class="section" id="reviewSection">
+            <div class="section-title">🌟 今日复盘</div>
+            <div id="reviewContent"></div>
+        </div>
     </div>
     
     <!-- STATS PAGE -->
     <div id="statsPage" class="page" style="display:none;">
         <div class="header">
-            <div class="date-main">📊 统计</div>
+            <div class="date-main">📊 数据统计</div>
         </div>
         
-        <div style="padding: 16px;">
+        <div style="padding: 20px;">
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="statTodoRate">0%</div>
@@ -494,10 +773,23 @@
     <!-- DIARY PAGE -->
     <div id="diaryPage" class="page" style="display:none;">
         <div class="header">
-            <div class="date-main">📖 日记</div>
+            <div class="date-main">📖 我的日记</div>
         </div>
+        
         <div id="diaryList"></div>
+        
+        <!-- Empty State -->
+        <div class="empty-state" id="diaryEmpty">
+            <div class="empty-icon">📖</div>
+            <div class="empty-title">还没有日记</div>
+            <div>点击下方按钮开始记录</div>
+        </div>
     </div>
+    
+    <!-- FAB for Diary -->
+    <button class="fab" id="diaryFab" onclick="openDiaryModal()" style="display:none;">
+        <i class="fas fa-plus"></i>
+    </button>
     
     <!-- MODALS -->
     
@@ -506,30 +798,30 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">🍽️ 饮食记录</div>
-                <button class="modal-close" onclick="closeModal('dietModal')">&times;</button>
+                <button class="modal-close" onclick="closeModal('dietModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
                 <div class="input-group">
-                    <label class="input-label">早餐</label>
+                    <label class="input-label">🌅 早餐</label>
                     <input type="text" class="input-field" id="breakfastInput" placeholder="吃了什么...">
                     <input type="number" class="input-field input-small" id="breakfastCal" placeholder="卡路里">
                 </div>
                 <div class="input-group">
-                    <label class="input-label">午餐</label>
+                    <label class="input-label">☀️ 午餐</label>
                     <input type="text" class="input-field" id="lunchInput" placeholder="吃了什么...">
                     <input type="number" class="input-field input-small" id="lunchCal" placeholder="卡路里">
                 </div>
                 <div class="input-group">
-                    <label class="input-label">晚餐</label>
+                    <label class="input-label">🌙 晚餐</label>
                     <input type="text" class="input-field" id="dinnerInput" placeholder="吃了什么...">
                     <input type="number" class="input-field input-small" id="dinnerCal" placeholder="卡路里">
                 </div>
                 <div class="input-group">
-                    <label class="input-label">加餐</label>
+                    <label class="input-label">🍿 加餐</label>
                     <input type="text" class="input-field" id="snackInput" placeholder="吃了什么...">
                     <input type="number" class="input-field input-small" id="snackCal" placeholder="卡路里">
                 </div>
-                <button class="save-btn" onclick="saveDiet()">保存记录</button>
+                <button class="save-btn" onclick="saveDiet()">💾 保存记录</button>
             </div>
         </div>
     </div>
@@ -539,7 +831,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">📝 待办事项</div>
-                <button class="modal-close" onclick="closeModal('todoModal')">&times;</button>
+                <button class="modal-close" onclick="closeModal('todoModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
                 <div class="add-btn">
@@ -558,7 +850,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">✅ 习惯打卡</div>
-                <button class="modal-close" onclick="closeModal('habitModal')">&times;</button>
+                <button class="modal-close" onclick="closeModal('habitModal')"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
                 <div class="add-btn">
@@ -572,11 +864,57 @@
         </div>
     </div>
     
+    <!-- Diary Modal -->
+    <div class="modal" id="diaryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📖 写日记</div>
+                <button class="modal-close" onclick="closeModal('diaryModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">今天心情如何？</label>
+                    <div class="mood-grid">
+                        <div class="mood-item" data-mood="1" onclick="selectMood(1)">
+                            <div class="mood-emoji">😫</div>
+                            <div class="mood-label">糟糕</div>
+                        </div>
+                        <div class="mood-item" data-mood="2" onclick="selectMood(2)">
+                            <div class="mood-emoji">😔</div>
+                            <div class="mood-label">低落</div>
+                        </div>
+                        <div class="mood-item selected" data-mood="3" onclick="selectMood(3)">
+                            <div class="mood-emoji">😐</div>
+                            <div class="mood-label">一般</div>
+                        </div>
+                        <div class="mood-item" data-mood="4" onclick="selectMood(4)">
+                            <div class="mood-emoji">😊</div>
+                            <div class="mood-label">不错</div>
+                        </div>
+                        <div class="mood-item" data-mood="5" onclick="selectMood(5)">
+                            <div class="mood-emoji">😄</div>
+                            <div class="mood-label">超棒</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">标题（可选）</label>
+                    <input type="text" class="input-field" id="diaryTitle" placeholder="今天发生了什么...">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">内容</label>
+                    <textarea class="input-field" id="diaryContent" rows="6" placeholder="写下今天的心情、收获、反思..."></textarea>
+                </div>
+                <button class="save-btn" onclick="saveDiary()">💾 保存日记</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Bottom Nav -->
     <div class="bottom-nav">
         <button class="nav-btn active" onclick="showPage('today')">
-            <div class="nav-icon"><i class="fas fa-edit"></i></div>
-            <div class="nav-text">记录</div>
+            <div class="nav-icon"><i class="fas fa-home"></i></div>
+            <div class="nav-text">今日</div>
         </button>
         <button class="nav-btn" onclick="showPage('stats')">
             <div class="nav-icon"><i class="fas fa-chart-pie"></i></div>

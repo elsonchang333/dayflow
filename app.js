@@ -1,4 +1,4 @@
-// DayFlow Web - 纯网页版
+// DayFlow Web - 精美升级版
 // 使用 localStorage 存储数据
 
 // Storage
@@ -18,6 +18,7 @@ let habits = Storage.get('habits') || [];
 let diets = Storage.get('diets') || [];
 let diaries = Storage.get('diaries') || [];
 let currentDate = new Date();
+let selectedMood = 3;
 
 // Utils
 const formatDate = (date) => {
@@ -41,6 +42,15 @@ const getToday = () => formatDate(new Date()).full;
 document.addEventListener('DOMContentLoaded', () => {
     updateDate();
     renderAll();
+    
+    // Close modal on background click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+    });
 });
 
 // Update date display
@@ -74,11 +84,77 @@ function renderAll() {
         (todayDiet.dinnerCal || 0) + (todayDiet.snackCal || 0) : 0;
     document.getElementById('calorieCount').textContent = totalCal;
     
+    // Review
+    renderReview();
+    
     // Stats
     updateStats();
     
     // Diary
     renderDiaryList();
+}
+
+// Render Today's Review
+function renderReview() {
+    const dateStr = formatDate(currentDate).full;
+    const todayTodos = todos.filter(t => t.date === dateStr);
+    const completedTodos = todayTodos.filter(t => t.completed);
+    const checkedHabits = habits.filter(h => h.checkIns && h.checkIns.includes(dateStr));
+    const todayDiet = diets.find(d => d.date === dateStr);
+    const todayDiary = diaries.find(d => d.date === dateStr);
+    
+    let reviewHTML = '<div class="review-card">';
+    reviewHTML += '<div class="review-title">🌟 今日复盘</div>';
+    
+    if (todayTodos.length === 0 && habits.length === 0 && !todayDiet) {
+        reviewHTML += '<div style="text-align:center;padding:20px;opacity:0.9;">';
+        reviewHTML += '<div style="font-size:40px;margin-bottom:12px;">👋</div>';
+        reviewHTML += '<div>今天还没有记录哦，快开始吧！</div>';
+        reviewHTML += '</div>';
+    } else {
+        // Todos summary
+        if (todayTodos.length > 0) {
+            const rate = Math.round((completedTodos.length / todayTodos.length) * 100);
+            let emoji = rate === 100 ? '🎉' : rate >= 70 ? '👍' : rate >= 40 ? '💪' : '🔥';
+            reviewHTML += `<div class="review-item">`;
+            reviewHTML += `<span class="review-emoji">${emoji}</span>`;
+            reviewHTML += `<span>完成 ${completedTodos.length}/${todayTodos.length} 个待办 (${rate}%)</span>`;
+            reviewHTML += `</div>`;
+        }
+        
+        // Habits summary
+        if (habits.length > 0) {
+            const habitRate = Math.round((checkedHabits.length / habits.length) * 100);
+            let emoji = habitRate === 100 ? '🌟' : habitRate >= 70 ? '✨' : habitRate >= 40 ? '📌' : '📍';
+            reviewHTML += `<div class="review-item">`;
+            reviewHTML += `<span class="review-emoji">${emoji}</span>`;
+            reviewHTML += `<span>打卡 ${checkedHabits.length}/${habits.length} 个习惯 (${habitRate}%)</span>`;
+            reviewHTML += `</div>`;
+        }
+        
+        // Diet summary
+        if (todayDiet) {
+            const totalCal = (todayDiet.breakfastCal || 0) + (todayDiet.lunchCal || 0) + 
+                           (todayDiet.dinnerCal || 0) + (todayDiet.snackCal || 0);
+            let emoji = totalCal > 2500 ? '🍔' : totalCal > 2000 ? '😋' : totalCal > 1500 ? '🥗' : '🥗';
+            reviewHTML += `<div class="review-item">`;
+            reviewHTML += `<span class="review-emoji">${emoji}</span>`;
+            reviewHTML += `<span>今日摄入 ${totalCal} 卡路里</span>`;
+            reviewHTML += `</div>`;
+        }
+        
+        // Diary summary
+        if (todayDiary) {
+            const moods = ['😫','😔','😐','😊','😄'];
+            reviewHTML += `<div class="review-item">`;
+            reviewHTML += `<span class="review-emoji">${moods[todayDiary.mood - 1] || '😐'}</span>`;
+            reviewHTML += `<span>今日心情: ${todayDiary.title || '已记录'}</span>`;
+            reviewHTML += `</div>`;
+        }
+    }
+    
+    reviewHTML += '</div>';
+    document.getElementById('reviewContent').innerHTML = reviewHTML;
 }
 
 // Todo Functions
@@ -210,7 +286,7 @@ function renderHabitList() {
             const isChecked = habit.checkIns && habit.checkIns.includes(dateStr);
             return `
                 <div class="todo-item">
-                    <div class="habit-item ${isChecked ? 'habit-checked' : ''}" onclick="toggleHabit('${habit.id}')">
+                    <div class="habit-item ${isChecked ? 'habit-checked' : ''}" onclick="toggleHabit('${habit.id}')" style="flex:1;margin-right:12px;">
                         <div class="habit-icon">${habit.icon}</div>
                         <span class="habit-name">${habit.name}</span>
                     </div>
@@ -237,6 +313,15 @@ function openDietModal() {
         document.getElementById('dinnerCal').value = diet.dinnerCal || '';
         document.getElementById('snackInput').value = diet.snack || '';
         document.getElementById('snackCal').value = diet.snackCal || '';
+    } else {
+        document.getElementById('breakfastInput').value = '';
+        document.getElementById('breakfastCal').value = '';
+        document.getElementById('lunchInput').value = '';
+        document.getElementById('lunchCal').value = '';
+        document.getElementById('dinnerInput').value = '';
+        document.getElementById('dinnerCal').value = '';
+        document.getElementById('snackInput').value = '';
+        document.getElementById('snackCal').value = '';
     }
     
     openModal('dietModal');
@@ -270,7 +355,117 @@ function saveDiet() {
     Storage.set('diets', diets);
     closeModal('dietModal');
     renderAll();
-    alert('饮食记录已保存！');
+    
+    // Show toast
+    showToast('饮食记录已保存！');
+}
+
+// Diary Functions
+function selectMood(mood) {
+    selectedMood = mood;
+    document.querySelectorAll('.mood-item').forEach(item => {
+        item.classList.remove('selected');
+        if (parseInt(item.dataset.mood) === mood) {
+            item.classList.add('selected');
+        }
+    });
+}
+
+function saveDiary() {
+    const title = document.getElementById('diaryTitle').value.trim();
+    const content = document.getElementById('diaryContent').value.trim();
+    
+    if (!title && !content) {
+        alert('请填写标题或内容');
+        return;
+    }
+    
+    const dateStr = formatDate(currentDate).full;
+    const existingIndex = diaries.findIndex(d => d.date === dateStr);
+    
+    const diaryData = {
+        id: existingIndex >= 0 ? diaries[existingIndex].id : generateId(),
+        date: dateStr,
+        title: title || '无标题',
+        content: content,
+        mood: selectedMood,
+        created_at: existingIndex >= 0 ? diaries[existingIndex].created_at : Date.now(),
+        updated_at: Date.now()
+    };
+    
+    if (existingIndex >= 0) {
+        diaries[existingIndex] = diaryData;
+    } else {
+        diaries.unshift(diaryData);
+    }
+    
+    Storage.set('diaries', diaries);
+    closeModal('diaryModal');
+    
+    // Reset form
+    document.getElementById('diaryTitle').value = '';
+    document.getElementById('diaryContent').value = '';
+    selectMood(3);
+    
+    renderAll();
+    showToast('日记已保存！');
+}
+
+function deleteDiary(id) {
+    if (confirm('确定要删除这篇日记吗？')) {
+        diaries = diaries.filter(d => d.id !== id);
+        Storage.set('diaries', diaries);
+        renderAll();
+        showToast('日记已删除');
+    }
+}
+
+function renderDiaryList() {
+    const list = document.getElementById('diaryList');
+    const empty = document.getElementById('diaryEmpty');
+    const fab = document.getElementById('diaryFab');
+    
+    if (!list) return;
+    
+    if (diaries.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+    } else {
+        empty.style.display = 'none';
+        
+        const sorted = [...diaries].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        list.innerHTML = sorted.map(diary => {
+            const dateInfo = formatDate(diary.date);
+            const moods = ['😫','😔','😐','😊','😄'];
+            const mood = moods[(diary.mood || 3) - 1] || '😐';
+            
+            return `
+                <div class="diary-card">
+                    <div class="diary-header">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div class="diary-date">
+                                <div class="diary-month">${dateInfo.month}</div>
+                                <div class="diary-day">${dateInfo.date}</div>
+                            </div>
+                            <div class="diary-mood">${mood}</div>
+                        </div>
+                        <span style="color:#ef4444;cursor:pointer;" onclick="deleteDiary('${diary.id}')">
+                            <i class="fas fa-trash"></i>
+                        </span>
+                    </div>
+                    <div class="diary-title">${diary.title}</div>
+                    <div class="diary-content">${diary.content || ''}</div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Show FAB on diary page
+    if (fab) {
+        const isDiaryPage = document.getElementById('diaryPage').style.display !== 'none';
+        fab.style.display = isDiaryPage ? 'flex' : 'none';
+    }
 }
 
 // Stats
@@ -305,41 +500,6 @@ function updateStats() {
     document.getElementById('statDiaryCount').textContent = diaries.length;
 }
 
-// Diary
-function renderDiaryList() {
-    const list = document.getElementById('diaryList');
-    if (!list) return;
-    
-    if (diaries.length === 0) {
-        list.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">📖</div>
-                <div>还没有日记</div>
-            </div>
-        `;
-        return;
-    }
-    
-    const sorted = [...diaries].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    list.innerHTML = sorted.map(diary => {
-        const dateInfo = formatDate(diary.date);
-        const moods = ['😫','😔','😐','😊','😄'];
-        const mood = moods[(diary.mood || 3) - 1] || '😐';
-        
-        return `
-            <div class="section">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <div style="font-weight:600;">${dateInfo.month}${dateInfo.date}日</div>
-                    <div style="font-size:24px;">${mood}</div>
-                </div>
-                <div style="font-weight:600;margin-bottom:4px;">${diary.title || '无标题'}</div>
-                <div style="color:#64748b;font-size:14px;">${diary.content || ''}</div>
-            </div>
-        `;
-    }).join('');
-}
-
 // Navigation
 function showPage(page) {
     // Hide all pages
@@ -353,6 +513,17 @@ function showPage(page) {
     // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     event.target.closest('.nav-btn').classList.add('active');
+    
+    // Show/hide FAB
+    const fab = document.getElementById('diaryFab');
+    if (fab) {
+        fab.style.display = page === 'diary' ? 'flex' : 'none';
+    }
+    
+    // Re-render if needed
+    if (page === 'diary') {
+        renderDiaryList();
+    }
 }
 
 // Modal Functions
@@ -374,20 +545,69 @@ function openHabitModal() {
     openModal('habitModal');
 }
 
-// Close modal on background click
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('active');
-        }
+function openDiaryModal() {
+    const dateStr = formatDate(currentDate).full;
+    const existingDiary = diaries.find(d => d.date === dateStr);
+    
+    if (existingDiary) {
+        document.getElementById('diaryTitle').value = existingDiary.title === '无标题' ? '' : existingDiary.title;
+        document.getElementById('diaryContent').value = existingDiary.content || '';
+        selectMood(existingDiary.mood || 3);
+    } else {
+        document.getElementById('diaryTitle').value = '';
+        document.getElementById('diaryContent').value = '';
+        selectMood(3);
+    }
+    
+    openModal('diaryModal');
+}
+
+// Toast
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-size: 16px;
+        z-index: 9999;
+        animation: fadeIn 0.3s;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 1500);
+}
+
+// Enter key support
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('todoInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTodo();
+    });
+    
+    document.getElementById('habitInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addHabit();
     });
 });
 
-// Enter key support
-document.getElementById('todoInput')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addTodo();
-});
-
-document.getElementById('habitInput')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addHabit();
-});
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    @keyframes fadeOut {
+        from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    }
+`;
+document.head.appendChild(style);
