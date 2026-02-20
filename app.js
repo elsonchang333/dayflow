@@ -49,13 +49,13 @@ async function initSupabase() {
     
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
-    // Check if user is already logged in
+    // Check if user is already logged in (for display only)
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (user) {
       AppState.currentUser = user;
-      console.log('✅ User already logged in:', user.email);
+      console.log('✅ User logged in:', user.email);
       hideAuthModal();
-      await loadUserData();
+      // NOTE: Cloud sync disabled - using localStorage only
     } else {
       console.log('👤 No user logged in');
       showAuthModal();
@@ -369,11 +369,9 @@ async function saveData() {
   LocalDB.set('events', AppState.events);
   LocalDB.set('diaries', AppState.diaries);
   
-  // Auto-sync to Supabase if logged in
-  if (AppState.currentUser && supabaseClient) {
-    console.log('🔄 Auto-syncing to Supabase...');
-    await autoSyncToSupabase();
-  }
+  // NOTE: Cloud sync disabled for stability
+  // Data is saved to localStorage only
+  console.log('💾 Saved to localStorage (cloud sync disabled)');
 }
 
 // Auto sync all data to Supabase (lightweight version for frequent saves)
