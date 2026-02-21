@@ -436,8 +436,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAll();
     initPomodoro();
     
-    // Check login status
+    // Check login status FIRST - before showing any page
     await initAuth();
+    
+    // After auth check, show correct page
+    if (!isLoggedIn()) {
+        showLoginPageOnly();
+    }
 });
 
 async function initAuth() {
@@ -461,18 +466,22 @@ function renderAuthUI() {
     const bottomNav = document.querySelector('.bottom-nav');
     
     if (!isLoggedIn()) {
-        // Show login page
-        if (loginPage) loginPage.style.display = 'block';
-        if (todayPage) todayPage.style.display = 'none';
-        if (bottomNav) bottomNav.style.display = 'none';
+        // Show login page only
+        showLoginPageOnly();
     } else {
         // Show main app
-        if (loginPage) loginPage.style.display = 'none';
+        // Hide all pages first
+        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+        
+        // Show today page
         if (todayPage) todayPage.style.display = 'block';
         if (bottomNav) bottomNav.style.display = 'flex';
         
         // Update settings page
         updateSettingsAuthUI();
+        
+        // Refresh data
+        renderAll();
     }
 }
 
@@ -499,9 +508,20 @@ function updateSettingsAuthUI() {
 }
 
 function showLoginPage() {
-    showPage('settings');
-    document.getElementById('settingsPage').style.display = 'none';
-    document.getElementById('loginPage').style.display = 'block';
+    showLoginPageOnly();
+}
+
+function showLoginPageOnly() {
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    
+    // Show only login page
+    const loginPage = document.getElementById('loginPage');
+    if (loginPage) loginPage.style.display = 'block';
+    
+    // Hide bottom nav
+    const bottomNav = document.querySelector('.bottom-nav');
+    if (bottomNav) bottomNav.style.display = 'none';
 }
 
 async function handleLogin() {
@@ -567,9 +587,16 @@ async function handleRegister() {
 
 function skipLogin() {
     // Hide login page, show main app
-    document.getElementById('loginPage').style.display = 'none';
-    document.getElementById('todayPage').style.display = 'block';
-    document.querySelector('.bottom-nav').style.display = 'flex';
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+    
+    const todayPage = document.getElementById('todayPage');
+    const bottomNav = document.querySelector('.bottom-nav');
+    
+    if (todayPage) todayPage.style.display = 'block';
+    if (bottomNav) bottomNav.style.display = 'flex';
+    
+    // Set a flag to indicate offline mode
+    Storage.set('offline_mode', true);
 }
 
 function initSettings() {
