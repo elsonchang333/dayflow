@@ -2,7 +2,7 @@
 // 功能：待办、饮食、习惯、日记、番茄钟、统计、导出/导入、深色模式、通知、登录同步
 
 // ==================== Supabase Config ====================
-const SUPABASE_URL = 'https://zwmulguxnpidlmyjnpgde.supabase.co';
+const SUPABASE_URL = 'https://zwmulguxnpidlmyjnpge.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3bXVsZ3V4bnBpZGxteWpucGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTIwMjIsImV4cCI6MjA4NzE2ODAyMn0.Ft7u2_oco7JkQBrbEzhG2_rDihIaGs60f-Sfwb2FSAU';
 
 // ==================== Storage ====================
