@@ -96,8 +96,11 @@ async function signIn(email, password) {
     Storage.set('auth_token', authToken);
     Storage.set('user_email', email);
     
-    // Sync data after login
-    await syncAll();
+    // Update UI immediately
+    renderAuthUI();
+    
+    // Sync data after login (in background)
+    syncAll().catch(err => console.error('Sync failed:', err));
     
     return { success: true, user: data.user };
   } catch (error) {
