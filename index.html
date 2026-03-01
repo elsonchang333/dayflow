@@ -958,7 +958,7 @@
                 <div class="quick-icon">🍽️</div>
                 <div class="quick-text">饮食</div>
             </button>
-            <button class="quick-btn">
+            <button class="quick-btn" onclick="startPomodoro(); alert('番茄钟已开始！专注25分钟')">
                 <div class="quick-icon">🍅</div>
                 <div class="quick-text">番茄</div>
             </button>
@@ -1067,10 +1067,10 @@
                     <div class="overview-count" id="calorieCount">0</div>
                     <div class="overview-label">卡路里</div>
                 </div>
-                <div class="overview-card">
-                    <div class="overview-icon">📅</div>
-                    <div class="overview-count">0</div>
-                    <div class="overview-label">行程</div>
+                <div class="overview-card" onclick="alert('番茄钟：点击下方🍅快速开始专注25分钟')">
+                    <div class="overview-icon">🍅</div>
+                    <div class="overview-count" id="pomodoroDayCount">0</div>
+                    <div class="overview-label">番茄</div>
                 </div>
             </div>
         </div>
@@ -1616,6 +1616,6 @@
         </button>
     </div>
     
-    <script src="app.js?v=105"></script>
+    <script src="app.js?v=106"></script>
 </body>
 </html>
