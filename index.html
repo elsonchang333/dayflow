@@ -1285,6 +1285,137 @@
         </div>
     </div>
 
+    <!-- POMODORO PAGE -->
+    <div id="pomodoroPage" class="page" style="display:none;">
+        <div class="header" style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);">
+            <div class="date-main">🍅 番茄专注</div>
+            <div class="date-sub" id="pomodoroModeText">专注模式 · 25分钟</div>
+        </div>
+        
+        <!-- Timer Display -->
+        <div style="display: flex; flex-direction: column; align-items: center; padding: 40px 20px;">
+            <!-- Circular Progress -->
+            <div style="position: relative; width: 260px; height: 260px; margin-bottom: 30px;">
+                <svg width="260" height="260" style="transform: rotate(-90deg);">
+                    <circle cx="130" cy="130" r="120" fill="none" stroke="#e2e8f0" stroke-width="12"/>
+                    <circle id="pomodoroCircle" cx="130" cy="130" r="120" fill="none" stroke="url(#pomodoroGradient)" stroke-width="12"
+                            stroke-linecap="round" stroke-dasharray="754" stroke-dashoffset="0"
+                            style="transition: stroke-dashoffset 1s linear;"/>
+                    <defs>
+                        <linearGradient id="pomodoroGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ef4444" />
+                            <stop offset="100%" stop-color="#f97316" />
+                        </linearGradient>
+                        <linearGradient id="breakGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#10b981" />
+                            <stop offset="100%" stop-color="#3b82f6" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                    <div id="pomodoroTimeDisplay" style="font-size: 64px; font-weight: 200; color: #1e293b; font-variant: tabular-nums; line-height: 1;">25:00</div>
+                    <div id="pomodoroStatus" style="font-size: 14px; color: #64748b; margin-top: 8px;">准备开始</div>
+                </div>
+            </div>
+            
+            <!-- Task Input -->
+            <div style="width: 100%; max-width: 320px; margin-bottom: 30px;">
+                <input type="text" id="pomodoroTask" placeholder="本次专注的任务..." 
+                       style="width: 100%; padding: 16px 20px; border-radius: 16px; border: 2px solid #e2e8f0; 
+                              font-size: 16px; text-align: center; outline: none; transition: all 0.3s;
+                              background: white;"
+                       onfocus="this.style.borderColor='#ef4444'" onblur="this.style.borderColor='#e2e8f0'">
+            </div>
+            
+            <!-- Control Buttons -->
+            <div style="display: flex; gap: 16px; margin-bottom: 30px;">
+                <button id="pomodoroStartBtn" onclick="startPomodoroFull()" 
+                        style="width: 80px; height: 80px; border-radius: 50%; border: none; 
+                               background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+                               color: white; font-size: 24px; cursor: pointer; box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+                               transition: all 0.3s; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="pomodoroPauseBtn" onclick="pausePomodoroFull()" 
+                        style="width: 80px; height: 80px; border-radius: 50%; border: none; 
+                               background: #f59e0b; color: white; font-size: 24px; cursor: pointer; 
+                               box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4); display: none;
+                               transition: all 0.3s; align-items: center; justify-content: center;">
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button onclick="resetPomodoroFull()" 
+                        style="width: 60px; height: 60px; border-radius: 50%; border: none; 
+                               background: #e2e8f0; color: #64748b; font-size: 18px; cursor: pointer; 
+                               margin-top: 10px; transition: all 0.3s;">
+                    <i class="fas fa-redo"></i>
+                </button>
+                <button onclick="skipPomodoro()" 
+                        style="width: 60px; height: 60px; border-radius: 50%; border: none; 
+                               background: #e2e8f0; color: #64748b; font-size: 18px; cursor: pointer; 
+                               margin-top: 10px; transition: all 0.3s;">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+            </div>
+            
+            <!-- Mode Switch -->
+            <div style="display: flex; gap: 8px; background: #f1f5f9; padding: 6px; border-radius: 16px; margin-bottom: 20px;">
+                <button id="modeFocus" onclick="switchPomodoroMode('focus')" 
+                        style="padding: 10px 24px; border-radius: 12px; border: none; 
+                               background: white; color: #ef4444; font-weight: 600; cursor: pointer;
+                               box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    🍅 专注
+                </button>
+                <button id="modeShortBreak" onclick="switchPomodoroMode('shortBreak')" 
+                        style="padding: 10px 24px; border-radius: 12px; border: none; 
+                               background: transparent; color: #64748b; cursor: pointer;">
+                    ☕ 短休
+                </button>
+                <button id="modeLongBreak" onclick="switchPomodoroMode('longBreak')" 
+                        style="padding: 10px 24px; border-radius: 12px; border: none; 
+                               background: transparent; color: #64748b; cursor: pointer;">
+                    🌴 长休
+                </button>
+            </div>
+            
+            <!-- White Noise Toggle -->
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 20px; 
+                        background: #f8fafc; border-radius: 12px; margin-bottom: 20px;">
+                <i class="fas fa-music" style="color: #64748b;"></i>
+                <span style="color: #64748b; font-size: 14px;">白噪音</span>
+                <div class="toggle" id="whiteNoiseToggle" onclick="toggleWhiteNoise()" style="margin-left: auto;">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Today's Stats -->
+        <div class="section">
+            <div class="section-title">📊 今日专注</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 20px; border-radius: 16px; text-align: center;">
+                    <div style="font-size: 32px; font-weight: 700; color: #ef4444;" id="pomodoroCompletedToday">0</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">完成番茄</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 20px; border-radius: 16px; text-align: center;">
+                    <div style="font-size: 32px; font-weight: 700; color: #3b82f6;" id="pomodoroMinutesToday">0</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">专注分钟</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 20px; border-radius: 16px; text-align: center;">
+                    <div style="font-size: 32px; font-weight: 700; color: #10b981;" id="pomodoroTasksToday">0</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">完成任务</div>
+                </div>
+            </div>
+            
+            <!-- Recent History -->
+            <div id="pomodoroHistoryList" style="margin-top: 16px;">
+                <!-- History items will be rendered here -->
+                <div style="text-align: center; color: #94a3b8; padding: 20px;">
+                    还没有专注记录，开始第一个番茄吧！
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- STATS PAGE -->
     <div id="statsPage" class="page" style="display:none;">
         <div class="header">
@@ -1598,13 +1729,13 @@
             <div class="nav-icon"><i class="fas fa-home"></i></div>
             <div class="nav-text">记录</div>
         </button>
+        <button class="nav-btn" onclick="showPage('pomodoro')" data-page="pomodoro">
+            <div class="nav-icon"><i class="fas fa-clock"></i></div>
+            <div class="nav-text">番茄</div>
+        </button>
         <button class="nav-btn" onclick="showPage('calendar')" data-page="calendar">
             <div class="nav-icon"><i class="fas fa-calendar-alt"></i></div>
             <div class="nav-text">日历</div>
-        </button>
-        <button class="nav-btn" onclick="showPage('stats')" data-page="stats">
-            <div class="nav-icon"><i class="fas fa-chart-pie"></i></div>
-            <div class="nav-text">统计</div>
         </button>
         <button class="nav-btn" onclick="showPage('diary')" data-page="diary">
             <div class="nav-icon"><i class="fas fa-book"></i></div>
@@ -1616,6 +1747,6 @@
         </button>
     </div>
     
-    <script src="app.js?v=106"></script>
+    <script src="app.js?v=107"></script>
 </body>
 </html>
