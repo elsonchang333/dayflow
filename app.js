@@ -580,12 +580,16 @@ function renderAll() {
     
     // Diet
     const todayDiet = diets.find(d => d.date === dateStr);
-    console.log('🍽️ 查找饮食:', dateStr, '找到:', todayDiet ? '是' : '否', '总记录:', diets.length);
     const totalCal = todayDiet ? 
         (todayDiet.breakfastCal || 0) + (todayDiet.lunchCal || 0) + 
         (todayDiet.dinnerCal || 0) + (todayDiet.snackCal || 0) : 0;
-    console.log('🔥 总卡路里:', totalCal);
-    document.getElementById('calorieCount').textContent = totalCal;
+    const calEl = document.getElementById('calorieCount');
+    if (calEl) calEl.textContent = totalCal;
+    
+    // Pomodoro
+    const todayPomos = pomodoroHistory.filter(p => p.date === dateStr).length;
+    const pomoEl = document.getElementById('pomodoroDayCount');
+    if (pomoEl) pomoEl.textContent = todayPomos;
     
     // Review
     renderReview(todayTodos, checkedHabits, totalCal);
