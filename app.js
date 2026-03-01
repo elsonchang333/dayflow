@@ -5,6 +5,9 @@
 const SUPABASE_URL = 'https://zwmulguxnpidlmyjnpge.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3bXVsZ3V4bnBpZGxteWpucGdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1OTIwMjIsImV4cCI6MjA4NzE2ODAyMn0.Ft7u2_oco7JkQBrbEzhG2_rDihIaGs60f-Sfwb2FSAU';
 
+// 初始化 Supabase 客户端
+let supabaseClient = null;
+
 // ==================== Storage ====================
 const Storage = {
     get(key) {
@@ -47,28 +50,240 @@ let currentDate = new Date();
 let selectedMood = 3;
 let editingDiaryId = null; // 当前编辑的日记ID
 
-// ==================== Auth State (已禁用登录，仅本地使用) ====================
-let currentUser = { id: 'local_user' };
+// ==================== Auth State ====================
+let currentUser = null;
 let lastSyncTime = 0;
 
-// ==================== Auth Functions ====================
-// 登录功能已禁用，仅本地使用
+// ==================== Supabase Init ====================
+async function initSupabase() {
+    try {
+        // 动态加载 Supabase 库
+        if (typeof supabase === 'undefined') {
+            await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js');
+        }
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // 检查登录状态
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            currentUser = session.user;
+            await loadCloudData();
+        }
+        
+        updateAuthUI();
+        return true;
+    } catch (e) {
+        console.error('Supabase init error:', e);
+        return false;
+    }
+}
 
-// ==================== Sync Functions ====================
-// 云端同步已禁用，仅本地存储
-function saveAllData() {
-  Storage.set('todos', todos);
-  Storage.set('habits', habits);
-  Storage.set('diets', diets);
-  Storage.set('diaries', diaries);
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+// ==================== Auth Functions ====================
+async function signIn(email, password) {
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        currentUser = data.user;
+        await loadCloudData();
+        updateAuthUI();
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function signUp(email, password) {
+    try {
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) throw error;
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function signOut() {
+    try {
+        await supabaseClient.auth.signOut();
+        currentUser = null;
+        updateAuthUI();
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function updateAuthUI() {
+    const userEmailDisplay = document.getElementById('userEmailDisplay');
+    const syncBtn = document.getElementById('syncBtn');
+    const loginActionItem = document.getElementById('loginActionItem');
+    const logoutActionItem = document.getElementById('logoutActionItem');
+    
+    if (userEmailDisplay) {
+        userEmailDisplay.textContent = currentUser ? currentUser.email : '未登录';
+    }
+    if (syncBtn) {
+        syncBtn.style.display = currentUser ? 'inline-block' : 'none';
+    }
+    if (loginActionItem) {
+        loginActionItem.style.display = currentUser ? 'none' : 'block';
+    }
+    if (logoutActionItem) {
+        logoutActionItem.style.display = currentUser ? 'block' : 'none';
+    }
+}
+
+// ==================== Cloud Sync ====================
+async function saveAllData() {
+    // 保存到本地
+    Storage.set('todos', todos);
+    Storage.set('habits', habits);
+    Storage.set('diets', diets);
+    Storage.set('diaries', diaries);
+    Storage.set('pomodoroHistory', pomodoroHistory);
+    
+    // 如果已登录，同步到云端
+    if (currentUser && supabaseClient) {
+        await syncToCloud();
+    }
+}
+
+async function syncToCloud() {
+    if (!currentUser || !supabaseClient) return;
+    
+    showSyncLoading(true);
+    
+    try {
+        const userId = currentUser.id;
+        const timestamp = new Date().toISOString();
+        
+        // 上传数据到 Supabase
+        const data = {
+            user_id: userId,
+            todos: todos,
+            habits: habits,
+            diets: diets,
+            diaries: diaries,
+            pomodoro_history: pomodoroHistory,
+            updated_at: timestamp
+        };
+        
+        // 使用 upsert 更新或插入
+        const { error } = await supabaseClient
+            .from('user_data')
+            .upsert(data, { onConflict: 'user_id' });
+            
+        if (error) throw error;
+        
+        lastSyncTime = Date.now();
+        updateLastSyncDisplay();
+        
+    } catch (e) {
+        console.error('Sync error:', e);
+    } finally {
+        showSyncLoading(false);
+    }
+}
+
+async function loadCloudData() {
+    if (!currentUser || !supabaseClient) return;
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('user_data')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .single();
+            
+        if (error) {
+            if (error.code !== 'PGRST116') console.error('Load error:', error);
+            return;
+        }
+        
+        if (data) {
+            // 合并云端数据到本地（以更新时间为准）
+            if (data.todos) todos = mergeArrays(todos, data.todos);
+            if (data.habits) habits = mergeArrays(habits, data.habits);
+            if (data.diets) diets = mergeArrays(diets, data.diets);
+            if (data.diaries) diaries = mergeArrays(diaries, data.diaries);
+            if (data.pomodoro_history) pomodoroHistory = data.pomodoro_history;
+            
+            // 保存到本地
+            Storage.set('todos', todos);
+            Storage.set('habits', habits);
+            Storage.set('diets', diets);
+            Storage.set('diaries', diaries);
+            Storage.set('pomodoroHistory', pomodoroHistory);
+            
+            renderAll();
+        }
+        
+        lastSyncTime = Date.now();
+        updateLastSyncDisplay();
+        
+    } catch (e) {
+        console.error('Load cloud data error:', e);
+    }
+}
+
+function mergeArrays(local, remote) {
+    const merged = new Map();
+    
+    // 先添加本地数据
+    local.forEach(item => merged.set(item.id, item));
+    
+    // 合并远程数据
+    remote.forEach(item => {
+        const localItem = merged.get(item.id);
+        if (!localItem) {
+            merged.set(item.id, item);
+        } else {
+            // 比较更新时间，取最新的
+            const remoteTime = new Date(item.updated_at || 0).getTime();
+            const localTime = new Date(localItem.updated_at || 0).getTime();
+            if (remoteTime > localTime) {
+                merged.set(item.id, item);
+            }
+        }
+    });
+    
+    return Array.from(merged.values());
+}
+
+function updateLastSyncDisplay() {
+    const display = document.getElementById('lastSyncDisplay');
+    if (display) {
+        if (lastSyncTime) {
+            const date = new Date(lastSyncTime);
+            display.textContent = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+        } else {
+            display.textContent = '从未同步';
+        }
+    }
 }
 
 function showSyncLoading(show) {
-  const btn = document.getElementById('syncBtn');
-  if (btn) {
-    btn.innerHTML = show ? '<i class="fas fa-spinner fa-spin"></i> 同步中...' : '<i class="fas fa-cloud-upload-alt"></i> 立即同步';
-    btn.disabled = show;
-  }
+    const btn = document.getElementById('syncBtn');
+    if (btn) {
+        btn.innerHTML = show ? '<i class="fas fa-spinner fa-spin"></i> 同步中...' : '<i class="fas fa-cloud-upload-alt"></i> 立即同步';
+        btn.disabled = show;
+    }
+}
+
+// ==================== Lock App ====================
+function lockApp() {
+    localStorage.removeItem('dayflow_unlocked');
+    location.reload();
 }
 
 // ==================== Pomodoro Timer ====================
@@ -101,12 +316,12 @@ const formatDate = (date) => {
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 
 // ==================== Init ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await initSupabase();
     initSettings();
     updateDate();
     renderAll();
     initPomodoro();
-    // 直接进入主界面，无需登录
 });
 
 function initSettings() {
@@ -1224,3 +1439,73 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') addHabit();
     });
 });
+
+// ==================== Login Functions ====================
+function showLoginPage() {
+    openModal('loginModal');
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    
+    if (!email || !password) {
+        errorEl.textContent = '请输入邮箱和密码';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    const result = await signIn(email, password);
+    
+    if (result.success) {
+        closeModal('loginModal');
+        errorEl.style.display = 'none';
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPassword').value = '';
+        alert('登录成功！数据将自动同步到云端。');
+    } else {
+        errorEl.textContent = result.error || '登录失败';
+        errorEl.style.display = 'block';
+    }
+}
+
+async function handleRegister() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    
+    if (!email || !password) {
+        errorEl.textContent = '请输入邮箱和密码';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    if (password.length < 6) {
+        errorEl.textContent = '密码至少需要6位';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    const result = await signUp(email, password);
+    
+    if (result.success) {
+        errorEl.textContent = '注册成功！请查收验证邮件，然后登录。';
+        errorEl.style.color = '#10b981';
+        errorEl.style.display = 'block';
+    } else {
+        errorEl.textContent = result.error || '注册失败';
+        errorEl.style.color = '#ef4444';
+        errorEl.style.display = 'block';
+    }
+}
+
+// Override lock function to also sign out
+const originalLockApp = lockApp;
+lockApp = function() {
+    if (currentUser) {
+        signOut();
+    }
+    localStorage.removeItem('dayflow_unlocked');
+    location.reload();
+};
