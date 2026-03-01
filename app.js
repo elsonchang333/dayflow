@@ -143,7 +143,7 @@ function updateAuthUI() {
     }
 }
 
-// ==================== Cloud Sync ====================
+// ==================== Cloud Sync (使用分開的表) ====================
 async function saveAllData() {
     // 保存到本地
     Storage.set('todos', todos);
@@ -165,25 +165,54 @@ async function syncToCloud() {
     
     try {
         const userId = currentUser.id;
-        const timestamp = new Date().toISOString();
         
-        // 上传数据到 Supabase
-        const data = {
-            user_id: userId,
-            todos: todos,
-            habits: habits,
-            diets: diets,
-            diaries: diaries,
-            pomodoro_history: pomodoroHistory,
-            updated_at: timestamp
-        };
+        // 上傳 todos
+        if (todos.length > 0) {
+            const todosWithUser = todos.map(t => ({
+                ...t,
+                user_id: userId
+            }));
+            const { error } = await supabaseClient
+                .from('todos')
+                .upsert(todosWithUser, { onConflict: 'id' });
+            if (error) console.error('Todos sync error:', error);
+        }
         
-        // 使用 upsert 更新或插入
-        const { error } = await supabaseClient
-            .from('user_data')
-            .upsert(data, { onConflict: 'user_id' });
-            
-        if (error) throw error;
+        // 上傳 habits
+        if (habits.length > 0) {
+            const habitsWithUser = habits.map(h => ({
+                ...h,
+                user_id: userId
+            }));
+            const { error } = await supabaseClient
+                .from('habits')
+                .upsert(habitsWithUser, { onConflict: 'id' });
+            if (error) console.error('Habits sync error:', error);
+        }
+        
+        // 上傳 diets
+        if (diets.length > 0) {
+            const dietsWithUser = diets.map(d => ({
+                ...d,
+                user_id: userId
+            }));
+            const { error } = await supabaseClient
+                .from('diets')
+                .upsert(dietsWithUser, { onConflict: 'id' });
+            if (error) console.error('Diets sync error:', error);
+        }
+        
+        // 上傳 diaries
+        if (diaries.length > 0) {
+            const diariesWithUser = diaries.map(d => ({
+                ...d,
+                user_id: userId
+            }));
+            const { error } = await supabaseClient
+                .from('diaries')
+                .upsert(diariesWithUser, { onConflict: 'id' });
+            if (error) console.error('Diaries sync error:', error);
+        }
         
         lastSyncTime = Date.now();
         updateLastSyncDisplay();
@@ -199,34 +228,47 @@ async function loadCloudData() {
     if (!currentUser || !supabaseClient) return;
     
     try {
-        const { data, error } = await supabaseClient
-            .from('user_data')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .single();
-            
-        if (error) {
-            if (error.code !== 'PGRST116') console.error('Load error:', error);
-            return;
-        }
+        const userId = currentUser.id;
         
-        if (data) {
-            // 合并云端数据到本地（以更新时间为准）
-            if (data.todos) todos = mergeArrays(todos, data.todos);
-            if (data.habits) habits = mergeArrays(habits, data.habits);
-            if (data.diets) diets = mergeArrays(diets, data.diets);
-            if (data.diaries) diaries = mergeArrays(diaries, data.diaries);
-            if (data.pomodoro_history) pomodoroHistory = data.pomodoro_history;
-            
-            // 保存到本地
-            Storage.set('todos', todos);
-            Storage.set('habits', habits);
-            Storage.set('diets', diets);
-            Storage.set('diaries', diaries);
-            Storage.set('pomodoroHistory', pomodoroHistory);
-            
-            renderAll();
-        }
+        // 下載 todos
+        const { data: todosData, error: todosError } = await supabaseClient
+            .from('todos')
+            .select('*')
+            .eq('user_id', userId);
+        if (todosError) console.error('Todos load error:', todosError);
+        else if (todosData) todos = mergeArrays(todos, todosData);
+        
+        // 下載 habits
+        const { data: habitsData, error: habitsError } = await supabaseClient
+            .from('habits')
+            .select('*')
+            .eq('user_id', userId);
+        if (habitsError) console.error('Habits load error:', habitsError);
+        else if (habitsData) habits = mergeArrays(habits, habitsData);
+        
+        // 下載 diets
+        const { data: dietsData, error: dietsError } = await supabaseClient
+            .from('diets')
+            .select('*')
+            .eq('user_id', userId);
+        if (dietsError) console.error('Diets load error:', dietsError);
+        else if (dietsData) diets = mergeArrays(diets, dietsData);
+        
+        // 下載 diaries
+        const { data: diariesData, error: diariesError } = await supabaseClient
+            .from('diaries')
+            .select('*')
+            .eq('user_id', userId);
+        if (diariesError) console.error('Diaries load error:', diariesError);
+        else if (diariesData) diaries = mergeArrays(diaries, diariesData);
+        
+        // 保存到本地
+        Storage.set('todos', todos);
+        Storage.set('habits', habits);
+        Storage.set('diets', diets);
+        Storage.set('diaries', diaries);
+        
+        renderAll();
         
         lastSyncTime = Date.now();
         updateLastSyncDisplay();
