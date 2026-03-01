@@ -334,6 +334,17 @@ let pomodoroTimeLeft = 25 * 60; // 25 minutes in seconds
 let pomodoroTotalTime = 25 * 60;
 let pomodoroIsRunning = false;
 let pomodoroIsPaused = false;
+let pomodoroMode = 'focus'; // 'focus', 'shortBreak', 'longBreak'
+let pomodoroCurrentTask = '';
+let whiteNoiseEnabled = false;
+let whiteNoiseAudio = null;
+
+// Pomodoro Mode Settings
+const POMODORO_MODES = {
+    focus: { time: 25 * 60, label: '专注模式', color: '#ef4444', gradient: 'pomodoroGradient' },
+    shortBreak: { time: 5 * 60, label: '短休息', color: '#10b981', gradient: 'breakGradient' },
+    longBreak: { time: 15 * 60, label: '长休息', color: '#3b82f6', gradient: 'breakGradient' }
+};
 
 // ==================== Settings ====================
 let settings = Storage.get('settings') || {
@@ -414,6 +425,9 @@ function showPage(page) {
     }
     if (page === 'calendar') {
         renderCalendarPage();
+    }
+    if (page === 'pomodoro') {
+        updatePomodoroPage();
     }
 }
 
@@ -1007,103 +1021,310 @@ function initPomodoro() {
     updatePomodoroHistory();
 }
 
-function startPomodoro() {
+// ==================== Pomodoro Full Functions ====================
+function startPomodoroFull() {
     if (pomodoroIsRunning) return;
+    
+    // Get task name
+    const taskInput = document.getElementById('pomodoroTask');
+    pomodoroCurrentTask = taskInput ? taskInput.value.trim() : '';
     
     pomodoroIsRunning = true;
     pomodoroIsPaused = false;
     
-    document.getElementById('pomodoroStartBtn').style.display = 'none';
-    document.getElementById('pomodoroPauseBtn').style.display = 'inline-block';
-    document.getElementById('pomodoroStatus').textContent = '专注中...';
+    // Update UI
+    const startBtn = document.getElementById('pomodoroStartBtn');
+    const pauseBtn = document.getElementById('pomodoroPauseBtn');
+    const status = document.getElementById('pomodoroStatus');
+    
+    if (startBtn) startBtn.style.display = 'none';
+    if (pauseBtn) pauseBtn.style.display = 'flex';
+    if (status) status.textContent = pomodoroMode === 'focus' ? '专注中...' : '休息中...';
+    
+    // Play white noise if enabled
+    if (whiteNoiseEnabled) playWhiteNoise();
     
     pomodoroTimer = setInterval(() => {
         if (pomodoroTimeLeft > 0) {
             pomodoroTimeLeft--;
-            updatePomodoroDisplay();
+            updatePomodoroFullDisplay();
         } else {
-            completePomodoro();
+            completePomodoroFull();
         }
     }, 1000);
 }
 
-function pausePomodoro() {
+function pausePomodoroFull() {
     if (!pomodoroIsRunning) return;
     
     clearInterval(pomodoroTimer);
     pomodoroIsRunning = false;
     pomodoroIsPaused = true;
     
-    document.getElementById('pomodoroStartBtn').style.display = 'inline-block';
-    document.getElementById('pomodoroPauseBtn').style.display = 'none';
-    document.getElementById('pomodoroStatus').textContent = '已暂停';
+    // Update UI
+    const startBtn = document.getElementById('pomodoroStartBtn');
+    const pauseBtn = document.getElementById('pomodoroPauseBtn');
+    const status = document.getElementById('pomodoroStatus');
+    
+    if (startBtn) startBtn.style.display = 'flex';
+    if (pauseBtn) pauseBtn.style.display = 'none';
+    if (status) status.textContent = '已暂停';
+    
+    // Pause white noise
+    if (whiteNoiseAudio) whiteNoiseAudio.pause();
 }
 
-function resetPomodoro() {
+function resetPomodoroFull() {
     clearInterval(pomodoroTimer);
     pomodoroIsRunning = false;
     pomodoroIsPaused = false;
-    pomodoroTimeLeft = pomodoroTotalTime;
     
-    document.getElementById('pomodoroStartBtn').style.display = 'inline-block';
-    document.getElementById('pomodoroPauseBtn').style.display = 'none';
-    document.getElementById('pomodoroStatus').textContent = '准备开始专注';
+    const mode = POMODORO_MODES[pomodoroMode];
+    pomodoroTimeLeft = mode.time;
+    pomodoroTotalTime = mode.time;
     
-    updatePomodoroDisplay();
+    // Update UI
+    const startBtn = document.getElementById('pomodoroStartBtn');
+    const pauseBtn = document.getElementById('pomodoroPauseBtn');
+    const status = document.getElementById('pomodoroStatus');
+    
+    if (startBtn) startBtn.style.display = 'flex';
+    if (pauseBtn) pauseBtn.style.display = 'none';
+    if (status) status.textContent = '准备开始';
+    
+    updatePomodoroFullDisplay();
+    
+    // Stop white noise
+    if (whiteNoiseAudio) whiteNoiseAudio.pause();
 }
 
-function completePomodoro() {
+function skipPomodoro() {
     clearInterval(pomodoroTimer);
     pomodoroIsRunning = false;
+    pomodoroIsPaused = false;
     
-    // Save to history
-    const today = formatDate(new Date()).full;
-    const todayHistory = pomodoroHistory.filter(p => p.date === today);
-    pomodoroHistory.push({
-        id: generateId(),
-        date: today,
-        completed_at: Date.now()
-    });
-    Storage.set('pomodoroHistory', pomodoroHistory);
-    
-    // Reset
-    pomodoroTimeLeft = pomodoroTotalTime;
-    document.getElementById('pomodoroStartBtn').style.display = 'inline-block';
-    document.getElementById('pomodoroPauseBtn').style.display = 'none';
-    document.getElementById('pomodoroStatus').textContent = '专注完成！休息一下吧 🎉';
-    
-    updatePomodoroDisplay();
-    updatePomodoroHistory();
-    
-    // Notification
-    if (settings.notifications && 'Notification' in window) {
-        new Notification('番茄钟完成！', { 
-            body: '专注时间结束，休息一下吧 🎉',
-            icon: '🍅'
-        });
+    // Switch to appropriate mode
+    if (pomodoroMode === 'focus') {
+        // After 4 focus sessions, take long break
+        const todayCount = pomodoroHistory.filter(p => 
+            p.date === formatDate(new Date()).full && p.mode === 'focus'
+        ).length;
+        
+        if (todayCount % 4 === 0 && todayCount > 0) {
+            switchPomodoroMode('longBreak');
+        } else {
+            switchPomodoroMode('shortBreak');
+        }
     } else {
-        alert('🎉 番茄钟完成！休息一下吧');
+        switchPomodoroMode('focus');
     }
 }
 
-function updatePomodoroDisplay() {
-    const minutes = Math.floor(pomodoroTimeLeft / 60);
-    const seconds = pomodoroTimeLeft % 60;
-    document.getElementById('pomodoroTime').textContent = 
-        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+function completePomodoroFull() {
+    clearInterval(pomodoroTimer);
+    pomodoroIsRunning = false;
     
-    // Update progress circle
-    const progress = (pomodoroTotalTime - pomodoroTimeLeft) / pomodoroTotalTime;
-    const circumference = 2 * Math.PI * 90;
-    const offset = circumference - (progress * circumference);
-    document.getElementById('progressCircle').style.strokeDashoffset = offset;
+    const today = formatDate(new Date()).full;
+    const mode = pomodoroMode;
+    
+    // Save to history
+    if (mode === 'focus') {
+        pomodoroHistory.push({
+            id: generateId(),
+            date: today,
+            mode: mode,
+            task: pomodoroCurrentTask,
+            completed_at: Date.now()
+        });
+        Storage.set('pomodoroHistory', pomodoroHistory);
+    }
+    
+    // Notification
+    const title = mode === 'focus' ? '专注完成！' : '休息结束！';
+    const body = mode === 'focus' ? '专注时间结束，休息一下吧 🎉' : '休息结束，准备开始新的专注 💪';
+    
+    if (settings.notifications && 'Notification' in window) {
+        new Notification(title, { body: body, icon: '🍅' });
+    } else {
+        alert(`🎉 ${body}`);
+    }
+    
+    // Auto switch mode
+    if (mode === 'focus') {
+        const todayCount = pomodoroHistory.filter(p => 
+            p.date === today && p.mode === 'focus'
+        ).length;
+        
+        if (todayCount % 4 === 0) {
+            switchPomodoroMode('longBreak');
+        } else {
+            switchPomodoroMode('shortBreak');
+        }
+    } else {
+        switchPomodoroMode('focus');
+    }
+    
+    updatePomodoroPage();
+}
+
+function switchPomodoroMode(mode) {
+    pomodoroMode = mode;
+    const modeConfig = POMODORO_MODES[mode];
+    
+    pomodoroTimeLeft = modeConfig.time;
+    pomodoroTotalTime = modeConfig.time;
+    pomodoroIsRunning = false;
+    pomodoroIsPaused = false;
+    clearInterval(pomodoroTimer);
+    
+    // Update UI
+    const timeDisplay = document.getElementById('pomodoroTimeDisplay');
+    const status = document.getElementById('pomodoroStatus');
+    const modeText = document.getElementById('pomodoroModeText');
+    const startBtn = document.getElementById('pomodoroStartBtn');
+    const pauseBtn = document.getElementById('pomodoroPauseBtn');
+    const circle = document.getElementById('pomodoroCircle');
+    
+    if (timeDisplay) {
+        const minutes = Math.floor(modeConfig.time / 60);
+        timeDisplay.textContent = `${minutes}:00`;
+    }
+    if (status) status.textContent = '准备开始';
+    if (modeText) modeText.textContent = `${modeConfig.label} · ${Math.floor(modeConfig.time / 60)}分钟`;
+    if (startBtn) startBtn.style.display = 'flex';
+    if (pauseBtn) pauseBtn.style.display = 'none';
+    
+    // Update circle color
+    if (circle) {
+        circle.setAttribute('stroke', mode === 'focus' ? 'url(#pomodoroGradient)' : 'url(#breakGradient)');
+        circle.style.strokeDashoffset = 0;
+    }
+    
+    // Update mode buttons
+    document.querySelectorAll('[id^="mode"]').forEach(btn => {
+        btn.style.background = 'transparent';
+        btn.style.color = '#64748b';
+        btn.style.boxShadow = 'none';
+    });
+    
+    const activeBtn = document.getElementById(`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+    if (activeBtn) {
+        activeBtn.style.background = 'white';
+        activeBtn.style.color = modeConfig.color;
+        activeBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+    }
+    
+    updatePomodoroFullDisplay();
+}
+
+function updatePomodoroFullDisplay() {
+    const timeDisplay = document.getElementById('pomodoroTimeDisplay');
+    const circle = document.getElementById('pomodoroCircle');
+    
+    if (timeDisplay) {
+        const minutes = Math.floor(pomodoroTimeLeft / 60);
+        const seconds = pomodoroTimeLeft % 60;
+        timeDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    if (circle) {
+        const progress = (pomodoroTotalTime - pomodoroTimeLeft) / pomodoroTotalTime;
+        const circumference = 2 * Math.PI * 120; // r=120
+        const offset = circumference - (progress * circumference);
+        circle.style.strokeDashoffset = offset;
+    }
+}
+
+function updatePomodoroPage() {
+    const today = formatDate(new Date()).full;
+    const todaySessions = pomodoroHistory.filter(p => p.date === today && p.mode === 'focus');
+    
+    // Update stats
+    const completedEl = document.getElementById('pomodoroCompletedToday');
+    const minutesEl = document.getElementById('pomodoroMinutesToday');
+    const tasksEl = document.getElementById('pomodoroTasksToday');
+    
+    if (completedEl) completedEl.textContent = todaySessions.length;
+    if (minutesEl) minutesEl.textContent = todaySessions.length * 25;
+    
+    // Count unique tasks
+    const uniqueTasks = new Set(todaySessions.map(s => s.task).filter(t => t));
+    if (tasksEl) tasksEl.textContent = uniqueTasks.size;
+    
+    // Update history list
+    const historyList = document.getElementById('pomodoroHistoryList');
+    if (historyList) {
+        if (todaySessions.length === 0) {
+            historyList.innerHTML = `
+                <div style="text-align: center; color: #94a3b8; padding: 20px;">
+                    还没有专注记录，开始第一个番茄吧！
+                </div>
+            `;
+        } else {
+            historyList.innerHTML = todaySessions.slice().reverse().map((session, index) => {
+                const time = new Date(session.completed_at).toLocaleTimeString('zh-CN', { 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+                return `
+                    <div style="display: flex; align-items: center; padding: 12px; 
+                                background: #f8fafc; border-radius: 12px; margin-bottom: 8px;">
+                        <div style="width: 32px; height: 32px; border-radius: 50%; 
+                                    background: linear-gradient(135deg, #ef4444 0%, #f97316 100%);
+                                    display: flex; align-items: center; justify-content: center;
+                                    color: white; font-size: 14px; margin-right: 12px;">
+                            🍅
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #1e293b;">
+                                ${session.task || `专注 #${todaySessions.length - index}`}
+                            </div>
+                            <div style="font-size: 12px; color: #64748b;">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+function toggleWhiteNoise() {
+    whiteNoiseEnabled = !whiteNoiseEnabled;
+    const toggle = document.getElementById('whiteNoiseToggle');
+    if (toggle) toggle.classList.toggle('active', whiteNoiseEnabled);
+    
+    if (!whiteNoiseEnabled && whiteNoiseAudio) {
+        whiteNoiseAudio.pause();
+    } else if (whiteNoiseEnabled && pomodoroIsRunning) {
+        playWhiteNoise();
+    }
+}
+
+function playWhiteNoise() {
+    // Placeholder for white noise - in production, would load actual audio file
+    // For now, just console log
+    console.log('White noise would play here');
+}
+
+// Legacy functions for compatibility
+function startPomodoro() {
+    showPage('pomodoro');
+    setTimeout(() => startPomodoroFull(), 100);
+}
+
+function pausePomodoro() {
+    pausePomodoroFull();
+}
+
+function resetPomodoro() {
+    resetPomodoroFull();
+}
+
+function updatePomodoroDisplay() {
+    updatePomodoroFullDisplay();
 }
 
 function updatePomodoroHistory() {
-    const today = formatDate(new Date()).full;
-    const todayCount = pomodoroHistory.filter(p => p.date === today).length;
-    const el = document.getElementById('pomodoroHistory');
-    if (el) el.textContent = `${todayCount} 次`;
+    updatePomodoroPage();
 }
 
 // ==================== Calendar Page ====================
