@@ -1094,52 +1094,70 @@
         </div>
     </div>
     
-    <!-- POMODORO PAGE -->
-    <div id="pomodoroPage" class="page" style="display:none;">
+    <!-- CALENDAR PAGE -->
+    <div id="calendarPage" class="page" style="display:none;">
         <div class="header">
-            <div class="date-main">🍅 番茄钟</div>
-            <div class="date-sub">专注工作，高效产出</div>
+            <div class="date-main">📅 日历</div>
+            <div class="date-sub" id="calendarPageSubtitle">查看所有记录</div>
         </div>
         
-        <div class="pomodoro-container">
-            <div class="pomodoro-progress">
-                <svg width="200" height="200">
-                    <defs>
-                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#6366f1" />
-                            <stop offset="100%" stop-color="#ec4899" />
-                        </linearGradient>
-                    </defs>
-                    <circle class="pomodoro-progress-circle" cx="100" cy="100" r="90"/>
-                    <circle class="pomodoro-progress-bar" cx="100" cy="100" r="90" 
-                            stroke-dasharray="565.48" stroke-dashoffset="0" id="progressCircle"/>
-                </svg>
-            </div>
-            
-            <div class="pomodoro-time" id="pomodoroTime">25:00</div>
-            
-            <div class="pomodoro-status" id="pomodoroStatus">准备开始专注</div>
-            
-            <div class="pomodoro-controls">
-                <button class="pomodoro-btn primary" id="pomodoroStartBtn" onclick="startPomodoro()">
-                    <i class="fas fa-play"></i> 开始
+        <div class="section" style="margin-top: 16px;">
+            <!-- Month Navigation -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 0 4px;">
+                <button class="settings-btn" onclick="changeCalendarPageMonth(-1)" style="padding: 12px 16px;">
+                    <i class="fas fa-chevron-left"></i>
                 </button>
-                <button class="pomodoro-btn secondary" id="pomodoroPauseBtn" onclick="pausePomodoro()" style="display:none;">
-                    <i class="fas fa-pause"></i> 暂停
-                </button>
-                <button class="pomodoro-btn secondary" onclick="resetPomodoro()">
-                    <i class="fas fa-redo"></i> 重置
+                <div style="font-size: 20px; font-weight: 700;" id="calendarPageMonthTitle">2024年1月</div>
+                <button class="settings-btn" onclick="changeCalendarPageMonth(1)" style="padding: 12px 16px;">
+                    <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
             
-            <div style="margin-top: 40px; padding: 20px; background: var(--bg); border-radius: 16px;">
-                <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;">
-                    <i class="fas fa-history"></i> 今日专注记录
+            <!-- Weekday Headers -->
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px;">
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">日</div>
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">一</div>
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">二</div>
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">三</div>
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">四</div>
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">五</div>
+                <div style="text-align: center; font-size: 12px; color: var(--text-secondary); font-weight: 600;">六</div>
+            </div>
+            
+            <!-- Calendar Grid -->
+            <div id="calendarPageGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+                <!-- Calendar days will be generated here -->
+            </div>
+        </div>
+        
+        <!-- Day Summary -->
+        <div class="section">
+            <div class="section-title" id="calendarSelectedDateTitle">📋 今日概览</div>
+            <div id="calendarDaySummary" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                <div class="overview-card" style="cursor: pointer;" onclick="showPage('today')">
+                    <div class="overview-icon">📝</div>
+                    <div class="overview-count" id="calDayTodos">0/0</div>
+                    <div class="overview-label">待办</div>
                 </div>
-                <div id="pomodoroHistory" style="font-size: 24px; font-weight: 700; color: var(--primary);">
-                    0 次
+                <div class="overview-card" style="cursor: pointer;" onclick="showPage('today')">
+                    <div class="overview-icon">✅</div>
+                    <div class="overview-count" id="calDayHabits">0/0</div>
+                    <div class="overview-label">习惯</div>
+                </div>
+                <div class="overview-card" style="cursor: pointer;" onclick="showPage('today')">
+                    <div class="overview-icon">🍽️</div>
+                    <div class="overview-count" id="calDayCalories">0</div>
+                    <div class="overview-label">卡路里</div>
+                </div>
+                <div class="overview-card" style="cursor: pointer;" onclick="showPage('diary')">
+                    <div class="overview-icon">📖</div>
+                    <div class="overview-count" id="calDayDiary">-</div>
+                    <div class="overview-label">日记</div>
                 </div>
             </div>
+            <button class="save-btn" onclick="goToCalendarDate()" style="margin-top: 16px;">
+                <i class="fas fa-arrow-right"></i> 前往该日期记录
+            </button>
         </div>
     </div>
 
@@ -1580,9 +1598,9 @@
             <div class="nav-icon"><i class="fas fa-home"></i></div>
             <div class="nav-text">记录</div>
         </button>
-        <button class="nav-btn" onclick="showPage('pomodoro')" data-page="pomodoro">
-            <div class="nav-icon"><i class="fas fa-clock"></i></div>
-            <div class="nav-text">番茄</div>
+        <button class="nav-btn" onclick="showPage('calendar')" data-page="calendar">
+            <div class="nav-icon"><i class="fas fa-calendar-alt"></i></div>
+            <div class="nav-text">日历</div>
         </button>
         <button class="nav-btn" onclick="showPage('stats')" data-page="stats">
             <div class="nav-icon"><i class="fas fa-chart-pie"></i></div>
@@ -1598,112 +1616,6 @@
         </button>
     </div>
     
-    <script>
-        // 直接绑定日历按钮事件 - 完全独立的实现
-        document.addEventListener('DOMContentLoaded', function() {
-            var calendarBtn = document.getElementById('calendarBtn');
-            var calendarModal = document.getElementById('calendarModal');
-            var calendarGrid = document.getElementById('calendarGrid');
-            var calendarMonthTitle = document.getElementById('calendarMonthTitle');
-            var currentMonth = new Date();
-            var selectedDate = new Date();
-            
-            if (calendarBtn && calendarModal) {
-                calendarBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Calendar button clicked');
-                    
-                    // 显示 modal
-                    calendarModal.style.display = 'flex';
-                    calendarModal.classList.add('active');
-                    
-                    // 渲染日历
-                    renderCalendar();
-                });
-                
-                // 关闭按钮
-                var closeBtn = calendarModal.querySelector('.modal-close');
-                if (closeBtn) {
-                    closeBtn.addEventListener('click', function() {
-                        calendarModal.style.display = 'none';
-                        calendarModal.classList.remove('active');
-                    });
-                }
-                
-                // 月份切换
-                var prevBtn = calendarModal.querySelector('button[onclick*="changeCalendarMonth(-1)"]');
-                var nextBtn = calendarModal.querySelector('button[onclick*="changeCalendarMonth(1)"]');
-                
-                if (prevBtn) {
-                    prevBtn.onclick = function() {
-                        currentMonth.setMonth(currentMonth.getMonth() - 1);
-                        renderCalendar();
-                    };
-                }
-                
-                if (nextBtn) {
-                    nextBtn.onclick = function() {
-                        currentMonth.setMonth(currentMonth.getMonth() + 1);
-                        renderCalendar();
-                    };
-                }
-                
-                // 渲染日历函数
-                function renderCalendar() {
-                    var year = currentMonth.getFullYear();
-                    var month = currentMonth.getMonth();
-                    var months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-                    
-                    calendarMonthTitle.textContent = year + '年' + months[month];
-                    
-                    var firstDay = new Date(year, month, 1);
-                    var lastDay = new Date(year, month + 1, 0);
-                    var startDayOfWeek = firstDay.getDay();
-                    
-                    calendarGrid.innerHTML = '';
-                    
-                    // 前月填充
-                    for (var i = 0; i < startDayOfWeek; i++) {
-                        var emptyCell = document.createElement('div');
-                        emptyCell.style.height = '44px';
-                        calendarGrid.appendChild(emptyCell);
-                    }
-                    
-                    // 当月日期
-                    var today = new Date();
-                    
-                    for (var day = 1; day <= lastDay.getDate(); day++) {
-                        var date = new Date(year, month, day);
-                        var isToday = date.toDateString() === today.toDateString();
-                        var isSelected = date.toDateString() === selectedDate.toDateString();
-                        
-                        var dayCell = document.createElement('button');
-                        dayCell.style.cssText = 'height: 44px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; background: ' + 
-                            (isSelected ? '#6366f1' : isToday ? '#f8fafc' : 'white') + '; color: ' + 
-                            (isSelected ? 'white' : isToday ? '#6366f1' : '#1e293b') + ';';
-                        dayCell.textContent = day;
-                        
-                        dayCell.onclick = (function(d) {
-                            return function() {
-                                selectedDate = new Date(d);
-                                console.log('Selected date:', selectedDate);
-                                // 这里可以添加更多逻辑
-                                calendarModal.style.display = 'none';
-                                calendarModal.classList.remove('active');
-                            };
-                        })(date);
-                        
-                        calendarGrid.appendChild(dayCell);
-                    }
-                }
-                
-                console.log('Calendar initialized successfully');
-            } else {
-                console.error('Calendar elements not found:', {btn: !!calendarBtn, modal: !!calendarModal});
-            }
-        });
-    </script>
-    <script src="app.js?v=104"></script>
+    <script src="app.js?v=105"></script>
 </body>
 </html>
