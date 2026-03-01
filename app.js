@@ -385,11 +385,17 @@ function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
     
     // Show selected
-    document.getElementById(page + 'Page').style.display = 'block';
+    const pageEl = document.getElementById(page + 'Page');
+    if (pageEl) {
+        pageEl.style.display = 'block';
+    }
     
     // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.closest('.nav-btn').classList.add('active');
+    const clickedBtn = event.target.closest('.nav-btn');
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    }
     
     // Show/hide FAB
     const fab = document.getElementById('diaryFab');
@@ -406,7 +412,9 @@ function showPage(page) {
     if (page === 'settings') {
         updateSettingsAuthUI();
     }
-    if (page === 'pomodoro') updatePomodoroHistory();
+    if (page === 'calendar') {
+        renderCalendarPage();
+    }
 }
 
 // ==================== Today Page ====================
@@ -1090,7 +1098,142 @@ function updatePomodoroDisplay() {
 function updatePomodoroHistory() {
     const today = formatDate(new Date()).full;
     const todayCount = pomodoroHistory.filter(p => p.date === today).length;
-    document.getElementById('pomodoroHistory').textContent = `${todayCount} 次`;
+    const el = document.getElementById('pomodoroHistory');
+    if (el) el.textContent = `${todayCount} 次`;
+}
+
+// ==================== Calendar Page ====================
+let calendarPageCurrentMonth = new Date();
+let calendarPageSelectedDate = new Date();
+
+function renderCalendarPage() {
+    const year = calendarPageCurrentMonth.getFullYear();
+    const month = calendarPageCurrentMonth.getMonth();
+    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    
+    // Update title
+    const titleEl = document.getElementById('calendarPageMonthTitle');
+    if (titleEl) titleEl.textContent = `${year}年${months[month]}`;
+    
+    // Get first day of month
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstDay.getDay();
+    
+    // Generate calendar grid
+    const grid = document.getElementById('calendarPageGrid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    // Previous month padding
+    for (let i = 0; i < startDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.style.height = '48px';
+        grid.appendChild(emptyCell);
+    }
+    
+    // Days of current month
+    const today = new Date();
+    const selectedStr = formatDate(calendarPageSelectedDate).full;
+    
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(year, month, day);
+        const dateStr = formatDate(date).full;
+        const isToday = dateStr === formatDate(today).full;
+        const isSelected = dateStr === selectedStr;
+        
+        const dayCell = document.createElement('button');
+        dayCell.style.cssText = `
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: ${isSelected ? 'var(--primary)' : isToday ? 'var(--bg)' : 'white'};
+            color: ${isSelected ? 'white' : isToday ? 'var(--primary)' : 'var(--text)'};
+            box-shadow: ${isSelected ? '0 4px 12px rgba(99, 102, 241, 0.4)' : '0 2px 4px rgba(0,0,0,0.05)'};
+            position: relative;
+            transition: all 0.2s;
+        `;
+        dayCell.textContent = day;
+        
+        // Check if has data
+        const hasTodo = todos.some(t => t.date === dateStr);
+        const hasHabit = habits.some(h => h.checkIns && h.checkIns.includes(dateStr));
+        const hasDiet = diets.some(d => d.date === dateStr);
+        const hasDiary = diaries.some(d => d.date === dateStr);
+        
+        if (hasTodo || hasHabit || hasDiet || hasDiary) {
+            const dot = document.createElement('div');
+            dot.style.cssText = `
+                position: absolute;
+                bottom: 6px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: ${isSelected ? 'white' : 'var(--primary)'};
+            `;
+            dayCell.appendChild(dot);
+        }
+        
+        dayCell.onclick = () => {
+            calendarPageSelectedDate = new Date(date);
+            renderCalendarPage();
+            updateCalendarDaySummary();
+        };
+        
+        grid.appendChild(dayCell);
+    }
+    
+    updateCalendarDaySummary();
+}
+
+function changeCalendarPageMonth(delta) {
+    calendarPageCurrentMonth.setMonth(calendarPageCurrentMonth.getMonth() + delta);
+    renderCalendarPage();
+}
+
+function updateCalendarDaySummary() {
+    const dateStr = formatDate(calendarPageSelectedDate).full;
+    const dateInfo = formatDate(calendarPageSelectedDate);
+    
+    // Update title
+    const titleEl = document.getElementById('calendarSelectedDateTitle');
+    if (titleEl) titleEl.textContent = `📋 ${dateInfo.month}${dateInfo.date}日 概览`;
+    
+    // Get data for selected date
+    const dayTodos = todos.filter(t => t.date === dateStr);
+    const completedTodos = dayTodos.filter(t => t.completed).length;
+    const todoEl = document.getElementById('calDayTodos');
+    if (todoEl) todoEl.textContent = `${completedTodos}/${dayTodos.length}`;
+    
+    const checkedHabits = habits.filter(h => h.checkIns && h.checkIns.includes(dateStr));
+    const habitEl = document.getElementById('calDayHabits');
+    if (habitEl) habitEl.textContent = `${checkedHabits.length}/${habits.length}`;
+    
+    const diet = diets.find(d => d.date === dateStr);
+    const calories = diet ? (diet.breakfastCal || 0) + (diet.lunchCal || 0) + (diet.dinnerCal || 0) + (diet.snackCal || 0) : 0;
+    const calEl = document.getElementById('calDayCalories');
+    if (calEl) calEl.textContent = calories;
+    
+    const diary = diaries.find(d => d.date === dateStr);
+    const diaryEl = document.getElementById('calDayDiary');
+    if (diaryEl) diaryEl.textContent = diary ? '✓' : '-';
+}
+
+function goToCalendarDate() {
+    currentDate = new Date(calendarPageSelectedDate);
+    updateDate();
+    renderAll();
+    showPage('today');
+    // Update nav button
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    const todayBtn = document.querySelector('[data-page="today"]');
+    if (todayBtn) todayBtn.classList.add('active');
 }
 
 // ==================== Stats Date Selector ====================
