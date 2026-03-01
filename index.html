@@ -916,7 +916,7 @@
         </div>
         
         <div id="passwordForm" style="width:100%;max-width:320px;">
-            <input type="password" id="passwordInput" placeholder="輸入密碼 (預設: 1234)" style="width:100%;padding:16px 20px;border-radius:12px;border:none;font-size:16px;margin-bottom:20px;text-align:center;outline:none;">
+            <input type="password" id="passwordInput" placeholder="輸入密碼" style="width:100%;padding:16px 20px;border-radius:12px;border:none;font-size:16px;margin-bottom:20px;text-align:center;outline:none;">
             <button onclick="unlock()" style="width:100%;padding:16px;background:white;color:#6366f1;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);">🔓 進入</button>
             <p id="errorMsg" style="color:#fecaca;text-align:center;margin-top:16px;font-size:14px;display:none;">密碼錯誤</p>
         </div>
@@ -1543,6 +1543,33 @@
                     <textarea class="input-field" id="diaryContent" rows="6" placeholder="写下今天的心情、收获、反思..."></textarea>
                 </div>
                 <button class="save-btn" onclick="saveDiary()">💾 保存日记</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">👤 登录 / 注册</div>
+                <button class="modal-close" onclick="closeModal('loginModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">邮箱</label>
+                    <input type="email" class="input-field" id="loginEmail" placeholder="your@email.com">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">密码</label>
+                    <input type="password" class="input-field" id="loginPassword" placeholder="输入密码">
+                </div>
+                <button class="save-btn" onclick="handleLogin()" style="margin-bottom: 12px;">
+                    <i class="fas fa-sign-in-alt"></i> 登录
+                </button>
+                <button class="save-btn" onclick="handleRegister()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <i class="fas fa-user-plus"></i> 注册新账号
+                </button>
+                <p id="loginError" style="color: #ef4444; text-align: center; margin-top: 12px; display: none;"></p>
             </div>
         </div>
     </div>
