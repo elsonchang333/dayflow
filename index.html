@@ -1599,31 +1599,111 @@
     </div>
     
     <script>
-        // 直接绑定日历按钮事件 - 备用方案
+        // 直接绑定日历按钮事件 - 完全独立的实现
         document.addEventListener('DOMContentLoaded', function() {
             var calendarBtn = document.getElementById('calendarBtn');
-            if (calendarBtn) {
+            var calendarModal = document.getElementById('calendarModal');
+            var calendarGrid = document.getElementById('calendarGrid');
+            var calendarMonthTitle = document.getElementById('calendarMonthTitle');
+            var currentMonth = new Date();
+            var selectedDate = new Date();
+            
+            if (calendarBtn && calendarModal) {
                 calendarBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('Calendar button clicked');
                     
-                    // 直接显示 modal
-                    var modal = document.getElementById('calendarModal');
-                    if (modal) {
-                        modal.style.display = 'flex';
-                        modal.classList.add('active');
-                        console.log('Calendar modal should be visible now');
-                    } else {
-                        console.error('calendarModal not found');
-                        alert('找不到日历组件');
-                    }
+                    // 显示 modal
+                    calendarModal.style.display = 'flex';
+                    calendarModal.classList.add('active');
+                    
+                    // 渲染日历
+                    renderCalendar();
                 });
+                
+                // 关闭按钮
+                var closeBtn = calendarModal.querySelector('.modal-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        calendarModal.style.display = 'none';
+                        calendarModal.classList.remove('active');
+                    });
+                }
+                
+                // 月份切换
+                var prevBtn = calendarModal.querySelector('button[onclick*="changeCalendarMonth(-1)"]');
+                var nextBtn = calendarModal.querySelector('button[onclick*="changeCalendarMonth(1)"]');
+                
+                if (prevBtn) {
+                    prevBtn.onclick = function() {
+                        currentMonth.setMonth(currentMonth.getMonth() - 1);
+                        renderCalendar();
+                    };
+                }
+                
+                if (nextBtn) {
+                    nextBtn.onclick = function() {
+                        currentMonth.setMonth(currentMonth.getMonth() + 1);
+                        renderCalendar();
+                    };
+                }
+                
+                // 渲染日历函数
+                function renderCalendar() {
+                    var year = currentMonth.getFullYear();
+                    var month = currentMonth.getMonth();
+                    var months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                    
+                    calendarMonthTitle.textContent = year + '年' + months[month];
+                    
+                    var firstDay = new Date(year, month, 1);
+                    var lastDay = new Date(year, month + 1, 0);
+                    var startDayOfWeek = firstDay.getDay();
+                    
+                    calendarGrid.innerHTML = '';
+                    
+                    // 前月填充
+                    for (var i = 0; i < startDayOfWeek; i++) {
+                        var emptyCell = document.createElement('div');
+                        emptyCell.style.height = '44px';
+                        calendarGrid.appendChild(emptyCell);
+                    }
+                    
+                    // 当月日期
+                    var today = new Date();
+                    
+                    for (var day = 1; day <= lastDay.getDate(); day++) {
+                        var date = new Date(year, month, day);
+                        var isToday = date.toDateString() === today.toDateString();
+                        var isSelected = date.toDateString() === selectedDate.toDateString();
+                        
+                        var dayCell = document.createElement('button');
+                        dayCell.style.cssText = 'height: 44px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; background: ' + 
+                            (isSelected ? '#6366f1' : isToday ? '#f8fafc' : 'white') + '; color: ' + 
+                            (isSelected ? 'white' : isToday ? '#6366f1' : '#1e293b') + ';';
+                        dayCell.textContent = day;
+                        
+                        dayCell.onclick = (function(d) {
+                            return function() {
+                                selectedDate = new Date(d);
+                                console.log('Selected date:', selectedDate);
+                                // 这里可以添加更多逻辑
+                                calendarModal.style.display = 'none';
+                                calendarModal.classList.remove('active');
+                            };
+                        })(date);
+                        
+                        calendarGrid.appendChild(dayCell);
+                    }
+                }
+                
+                console.log('Calendar initialized successfully');
             } else {
-                console.error('calendarBtn not found');
+                console.error('Calendar elements not found:', {btn: !!calendarBtn, modal: !!calendarModal});
             }
         });
     </script>
-    <script src="app.js?v=103"></script>
+    <script src="app.js?v=104"></script>
 </body>
 </html>
