@@ -450,9 +450,22 @@ function goToTodayDate() {
 let calendarCurrentMonth = new Date();
 
 function openCalendarModal() {
-    calendarCurrentMonth = new Date(currentDate);
-    renderCalendar();
-    openModal('calendarModal');
+    console.log('Opening calendar modal...');
+    try {
+        calendarCurrentMonth = new Date(currentDate);
+        renderCalendar();
+        const modal = document.getElementById('calendarModal');
+        if (modal) {
+            modal.classList.add('active');
+            console.log('Calendar modal opened successfully');
+        } else {
+            console.error('calendarModal element not found');
+            alert('日曆元素未找到，請刷新頁面重試');
+        }
+    } catch (e) {
+        console.error('Error opening calendar modal:', e);
+        alert('打開日曆失敗: ' + e.message);
+    }
 }
 
 function changeCalendarMonth(delta) {
