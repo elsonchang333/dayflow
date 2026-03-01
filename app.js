@@ -8,383 +8,54 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ==================== Storage ====================
 const Storage = {
     get(key) {
-        const data = localStorage.getItem('dayflow_' + key);
-        return data ? JSON.parse(data) : null;
+        try {
+            const data = localStorage.getItem('dayflow_' + key);
+            if (!data || data === 'undefined' || data === 'null') return null;
+            return JSON.parse(data);
+        } catch (e) {
+            console.warn('⚠️ Storage get error for key:', key, e);
+            return null;
+        }
     },
     set(key, value) {
-        localStorage.setItem('dayflow_' + key, JSON.stringify(value));
+        try {
+            localStorage.setItem('dayflow_' + key, JSON.stringify(value));
+        } catch (e) {
+            console.error('❌ Storage set error:', e);
+        }
     }
 };
 
 // ==================== State ====================
-let todos = Storage.get('todos') || [];
-let habits = Storage.get('habits') || [];
-let diets = Storage.get('diets') || [];
-let diaries = Storage.get('diaries') || [];
-let pomodoroHistory = Storage.get('pomodoroHistory') || [];
+// 安全获取数据，防止 localStorage 损坏
+function safeGet(key, defaultValue = null) {
+    try {
+        const result = Storage.get(key);
+        return result === undefined ? defaultValue : (result || defaultValue);
+    } catch (e) {
+        console.warn('safeGet error:', key, e);
+        return defaultValue;
+    }
+}
+
+let todos = safeGet('todos', []);
+let habits = safeGet('habits', []);
+let diets = safeGet('diets', []);
+let diaries = safeGet('diaries', []);
+let pomodoroHistory = safeGet('pomodoroHistory', []);
 let currentDate = new Date();
 let selectedMood = 3;
+let editingDiaryId = null; // 当前编辑的日记ID
 
-// ==================== Auth State ====================
-let currentUser = null;
-let authToken = Storage.get('auth_token');
-let lastSyncTime = Storage.get('last_sync_time') || 0;
+// ==================== Auth State (已禁用登录，仅本地使用) ====================
+let currentUser = { id: 'local_user' };
+let lastSyncTime = 0;
 
 // ==================== Auth Functions ====================
-function isLoggedIn() {
-  return !!currentUser;
-}
-
-function getAuthHeaders() {
-  return {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${authToken || SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json'
-  };
-}
-
-async function signUp(email, password) {
-  try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error_description || data.error);
-    }
-    
-    if (data.user && data.session) {
-      currentUser = data.user;
-      authToken = data.session.access_token;
-      Storage.set('auth_token', authToken);
-      Storage.set('user_email', email);
-      return { success: true, user: data.user };
-    }
-    
-    return { success: true, message: '注册成功，请查收验证邮件' };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-async function signIn(email, password) {
-  try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error_description || data.error);
-    }
-    
-    currentUser = data.user;
-    authToken = data.access_token;
-    Storage.set('auth_token', authToken);
-    Storage.set('user_email', email);
-    
-    // Update UI immediately
-    renderAuthUI();
-    
-    // Sync data after login (in background)
-    syncAll().catch(err => console.error('Sync failed:', err));
-    
-    return { success: true, user: data.user };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-}
-
-async function signOut() {
-  currentUser = null;
-  authToken = null;
-  Storage.set('auth_token', null);
-  Storage.set('user_email', null);
-  renderAuthUI();
-}
-
-async function getCurrentUser() {
-  if (!authToken) return null;
-  
-  try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: getAuthHeaders()
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error);
-    }
-    
-    currentUser = data;
-    return data;
-  } catch (error) {
-    console.error('Get user failed:', error);
-    return null;
-  }
-}
+// 登录功能已禁用，仅本地使用
 
 // ==================== Sync Functions ====================
-async function syncAll() {
-  if (!isLoggedIn()) {
-    alert('请先登录');
-    return { success: false, error: '未登录' };
-  }
-  
-  try {
-    showSyncLoading(true);
-    
-    // Upload local data
-    await uploadTodos();
-    await uploadHabits();
-    await uploadDiets();
-    await uploadDiaries();
-    
-    // Download cloud data
-    await downloadTodos();
-    await downloadHabits();
-    await downloadDiets();
-    await downloadDiaries();
-    
-    // Save locally
-    saveAllData();
-    
-    lastSyncTime = Date.now();
-    Storage.set('last_sync_time', lastSyncTime);
-    
-    renderAll();
-    showSyncLoading(false);
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Sync failed:', error);
-    showSyncLoading(false);
-    return { success: false, error: error.message };
-  }
-}
-
-async function uploadTodos() {
-  const records = todos.map(t => ({
-    id: t.id,
-    user_id: currentUser.id,
-    text: t.text,
-    date: t.date,
-    completed: t.completed,
-    created_at: new Date(t.created_at).toISOString(),
-    updated_at: new Date(t.updated_at || t.created_at).toISOString()
-  }));
-  
-  if (records.length === 0) return;
-  
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/todos`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(records)
-  });
-  
-  if (!response.ok) {
-    throw new Error('Upload todos failed');
-  }
-}
-
-async function uploadHabits() {
-  const records = habits.map(h => ({
-    id: h.id,
-    user_id: currentUser.id,
-    name: h.name,
-    icon: h.icon,
-    check_ins: h.checkIns || [],
-    created_at: new Date(h.created_at).toISOString()
-  }));
-  
-  if (records.length === 0) return;
-  
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/habits`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(records)
-  });
-  
-  if (!response.ok) {
-    throw new Error('Upload habits failed');
-  }
-}
-
-async function uploadDiets() {
-  const records = diets.map(d => ({
-    id: d.id,
-    user_id: currentUser.id,
-    date: d.date,
-    breakfast: d.breakfast,
-    breakfast_cal: d.breakfastCal || 0,
-    lunch: d.lunch,
-    lunch_cal: d.lunchCal || 0,
-    dinner: d.dinner,
-    dinner_cal: d.dinnerCal || 0,
-    snack: d.snack,
-    snack_cal: d.snackCal || 0,
-    created_at: new Date(d.created_at).toISOString(),
-    updated_at: new Date(d.updated_at || d.created_at).toISOString()
-  }));
-  
-  if (records.length === 0) return;
-  
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/diets`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(records)
-  });
-  
-  if (!response.ok) {
-    throw new Error('Upload diets failed');
-  }
-}
-
-async function uploadDiaries() {
-  const records = diaries.map(d => ({
-    id: d.id,
-    user_id: currentUser.id,
-    date: d.date,
-    title: d.title,
-    content: d.content,
-    mood: d.mood,
-    created_at: new Date(d.created_at).toISOString(),
-    updated_at: new Date(d.updated_at || d.created_at).toISOString()
-  }));
-  
-  if (records.length === 0) return;
-  
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/diaries`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(records)
-  });
-  
-  if (!response.ok) {
-    throw new Error('Upload diaries failed');
-  }
-}
-
-async function downloadTodos() {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/todos?select=*`, {
-    headers: getAuthHeaders()
-  });
-  
-  if (!response.ok) return;
-  
-  const data = await response.json();
-  
-  // Merge with local data
-  data.forEach(remote => {
-    const local = todos.find(t => t.id === remote.id);
-    if (!local) {
-      todos.push({
-        id: remote.id,
-        text: remote.text,
-        date: remote.date,
-        completed: remote.completed,
-        created_at: new Date(remote.created_at).getTime(),
-        updated_at: new Date(remote.updated_at).getTime()
-      });
-    }
-  });
-}
-
-async function downloadHabits() {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/habits?select=*`, {
-    headers: getAuthHeaders()
-  });
-  
-  if (!response.ok) return;
-  
-  const data = await response.json();
-  
-  data.forEach(remote => {
-    const local = habits.find(h => h.id === remote.id);
-    if (!local) {
-      habits.push({
-        id: remote.id,
-        name: remote.name,
-        icon: remote.icon,
-        checkIns: remote.check_ins || [],
-        created_at: new Date(remote.created_at).getTime()
-      });
-    } else {
-      // Merge check-ins
-      local.checkIns = [...new Set([...local.checkIns, ...(remote.check_ins || [])])];
-    }
-  });
-}
-
-async function downloadDiets() {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/diets?select=*`, {
-    headers: getAuthHeaders()
-  });
-  
-  if (!response.ok) return;
-  
-  const data = await response.json();
-  
-  data.forEach(remote => {
-    const local = diets.find(d => d.id === remote.id);
-    if (!local) {
-      diets.push({
-        id: remote.id,
-        date: remote.date,
-        breakfast: remote.breakfast,
-        breakfastCal: remote.breakfast_cal,
-        lunch: remote.lunch,
-        lunchCal: remote.lunch_cal,
-        dinner: remote.dinner,
-        dinnerCal: remote.dinner_cal,
-        snack: remote.snack,
-        snackCal: remote.snack_cal,
-        created_at: new Date(remote.created_at).getTime(),
-        updated_at: new Date(remote.updated_at).getTime()
-      });
-    }
-  });
-}
-
-async function downloadDiaries() {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/diaries?select=*`, {
-    headers: getAuthHeaders()
-  });
-  
-  if (!response.ok) return;
-  
-  const data = await response.json();
-  
-  data.forEach(remote => {
-    const local = diaries.find(d => d.id === remote.id);
-    if (!local) {
-      diaries.push({
-        id: remote.id,
-        date: remote.date,
-        title: remote.title,
-        content: remote.content,
-        mood: remote.mood,
-        created_at: new Date(remote.created_at).getTime(),
-        updated_at: new Date(remote.updated_at).getTime()
-      });
-    }
-  });
-}
-
+// 云端同步已禁用，仅本地存储
 function saveAllData() {
   Storage.set('todos', todos);
   Storage.set('habits', habits);
@@ -430,174 +101,13 @@ const formatDate = (date) => {
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 
 // ==================== Init ====================
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     updateDate();
     renderAll();
     initPomodoro();
-    
-    // Check login status FIRST - before showing any page
-    await initAuth();
-    
-    // After auth check, show correct page
-    if (!isLoggedIn()) {
-        showLoginPageOnly();
-    }
+    // 直接进入主界面，无需登录
 });
-
-async function initAuth() {
-    // Try to get current user from token
-    if (authToken) {
-        const user = await getCurrentUser();
-        if (user) {
-            currentUser = user;
-            renderAuthUI();
-            return;
-        }
-    }
-    
-    // Show login page if not logged in
-    renderAuthUI();
-}
-
-function renderAuthUI() {
-    const loginPage = document.getElementById('loginPage');
-    const todayPage = document.getElementById('todayPage');
-    const bottomNav = document.querySelector('.bottom-nav');
-    
-    if (!isLoggedIn()) {
-        // Show login page only
-        showLoginPageOnly();
-    } else {
-        // Show main app
-        // Hide all pages first
-        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-        
-        // Show today page
-        if (todayPage) todayPage.style.display = 'block';
-        if (bottomNav) bottomNav.style.display = 'flex';
-        
-        // Update settings page
-        updateSettingsAuthUI();
-        
-        // Refresh data
-        renderAll();
-    }
-}
-
-function updateSettingsAuthUI() {
-    const userEmailDisplay = document.getElementById('userEmailDisplay');
-    const lastSyncDisplay = document.getElementById('lastSyncDisplay');
-    const syncBtn = document.getElementById('syncBtn');
-    const loginActionItem = document.getElementById('loginActionItem');
-    const logoutActionItem = document.getElementById('logoutActionItem');
-    
-    if (isLoggedIn()) {
-        if (userEmailDisplay) userEmailDisplay.textContent = Storage.get('user_email') || '已登录';
-        if (lastSyncDisplay) lastSyncDisplay.textContent = lastSyncTime ? new Date(lastSyncTime).toLocaleString() : '从未同步';
-        if (syncBtn) syncBtn.style.display = 'block';
-        if (loginActionItem) loginActionItem.style.display = 'none';
-        if (logoutActionItem) logoutActionItem.style.display = 'block';
-    } else {
-        if (userEmailDisplay) userEmailDisplay.textContent = '未登录';
-        if (lastSyncDisplay) lastSyncDisplay.textContent = '离线使用';
-        if (syncBtn) syncBtn.style.display = 'none';
-        if (loginActionItem) loginActionItem.style.display = 'block';
-        if (logoutActionItem) logoutActionItem.style.display = 'none';
-    }
-}
-
-function showLoginPage() {
-    showLoginPageOnly();
-}
-
-function showLoginPageOnly() {
-    // Hide all pages
-    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-    
-    // Show only login page
-    const loginPage = document.getElementById('loginPage');
-    if (loginPage) loginPage.style.display = 'block';
-    
-    // Hide bottom nav
-    const bottomNav = document.querySelector('.bottom-nav');
-    if (bottomNav) bottomNav.style.display = 'none';
-}
-
-async function handleLogin() {
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!email || !password) {
-        alert('请输入邮箱和密码');
-        return;
-    }
-    
-    const btn = document.getElementById('loginBtn');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
-    btn.disabled = true;
-    
-    const result = await signIn(email, password);
-    
-    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-    btn.disabled = false;
-    
-    if (result.success) {
-        alert('登录成功！');
-        renderAuthUI();
-    } else {
-        alert('登录失败: ' + result.error);
-    }
-}
-
-async function handleRegister() {
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!email || !password) {
-        alert('请输入邮箱和密码');
-        return;
-    }
-    
-    if (password.length < 6) {
-        alert('密码至少需要6位');
-        return;
-    }
-    
-    const btn = document.getElementById('registerBtn');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
-    btn.disabled = true;
-    
-    const result = await signUp(email, password);
-    
-    btn.innerHTML = '<i class="fas fa-user-plus"></i> 注册新账号';
-    btn.disabled = false;
-    
-    if (result.success) {
-        if (result.user) {
-            alert('注册成功！已自动登录。');
-            renderAuthUI();
-        } else {
-            alert('注册成功！请查收验证邮件后登录。');
-        }
-    } else {
-        alert('注册失败: ' + result.error);
-    }
-}
-
-function skipLogin() {
-    // Hide login page, show main app
-    document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-    
-    const todayPage = document.getElementById('todayPage');
-    const bottomNav = document.querySelector('.bottom-nav');
-    
-    if (todayPage) todayPage.style.display = 'block';
-    if (bottomNav) bottomNav.style.display = 'flex';
-    
-    // Set a flag to indicate offline mode
-    Storage.set('offline_mode', true);
-}
 
 function initSettings() {
     // Apply dark mode
@@ -792,9 +302,11 @@ function renderAll() {
     
     // Diet
     const todayDiet = diets.find(d => d.date === dateStr);
+    console.log('🍽️ 查找饮食:', dateStr, '找到:', todayDiet ? '是' : '否', '总记录:', diets.length);
     const totalCal = todayDiet ? 
         (todayDiet.breakfastCal || 0) + (todayDiet.lunchCal || 0) + 
         (todayDiet.dinnerCal || 0) + (todayDiet.snackCal || 0) : 0;
+    console.log('🔥 总卡路里:', totalCal);
     document.getElementById('calorieCount').textContent = totalCal;
     
     // Review
@@ -807,7 +319,12 @@ function renderAll() {
 function renderReview(todayTodos, checkedHabits, totalCal) {
     const reviewContent = document.getElementById('reviewContent');
     
-    if (todayTodos.length === 0 && habits.length === 0) {
+    console.log('📊 renderReview:', { todos: todayTodos.length, habits: checkedHabits.length, calories: totalCal });
+    
+    // 检查今天是否有任何记录（待办、习惯打卡、饮食）
+    const hasRecords = todayTodos.length > 0 || checkedHabits.length > 0 || totalCal > 0;
+    
+    if (!hasRecords) {
         reviewContent.innerHTML = `
             <div style="text-align:center;color:#94a3b8;padding:20px;">
                 <div style="font-size:48px;margin-bottom:12px;">🌟</div>
@@ -831,11 +348,11 @@ function renderReview(todayTodos, checkedHabits, totalCal) {
         `;
     }
     
-    if (habits.length > 0) {
+    if (checkedHabits.length > 0) {
         html += `
             <div class="review-item">
                 <span class="review-emoji">✅</span>
-                <span>完成 ${checkedHabits.length}/${habits.length} 个习惯打卡</span>
+                <span>完成 ${checkedHabits.length} 个习惯打卡</span>
             </div>
         `;
     }
@@ -859,18 +376,22 @@ function addTodo() {
     const text = input.value.trim();
     if (!text) return;
     
+    // 强制使用主页当前日期
+    const todoDate = formatDate(currentDate).full;
+    
     todos.unshift({
         id: generateId(),
         text: text,
-        date: formatDate(modalDates.todo).full,
+        date: todoDate,
         completed: false,
         created_at: Date.now()
     });
     
     Storage.set('todos', todos);
     input.value = '';
-    renderTodoList(todos.filter(t => t.date === formatDate(modalDates.todo).full));
+    renderTodoList(todos.filter(t => t.date === todoDate));
     renderAll();
+    closeModal('todoModal');
     
     // Send notification if enabled
     if (settings.notifications && 'Notification' in window) {
@@ -1034,17 +555,26 @@ function saveDiet() {
     const dateStr = formatDate(currentDate).full;
     const existingIndex = diets.findIndex(d => d.date === dateStr);
     
+    // 获取输入值并转换为数字
+    const breakfastCal = parseInt(document.getElementById('breakfastCal').value) || 0;
+    const lunchCal = parseInt(document.getElementById('lunchCal').value) || 0;
+    const dinnerCal = parseInt(document.getElementById('dinnerCal').value) || 0;
+    const snackCal = parseInt(document.getElementById('snackCal').value) || 0;
+    const totalCalories = breakfastCal + lunchCal + dinnerCal + snackCal;
+    
+    console.log('🍽️ 保存饮食:', dateStr, '卡路里:', totalCalories);
+    
     const dietData = {
         id: existingIndex >= 0 ? diets[existingIndex].id : generateId(),
         date: dateStr,
         breakfast: document.getElementById('breakfastInput').value,
-        breakfastCal: parseInt(document.getElementById('breakfastCal').value) || 0,
+        breakfastCal: breakfastCal,
         lunch: document.getElementById('lunchInput').value,
-        lunchCal: parseInt(document.getElementById('lunchCal').value) || 0,
+        lunchCal: lunchCal,
         dinner: document.getElementById('dinnerInput').value,
-        dinnerCal: parseInt(document.getElementById('dinnerCal').value) || 0,
+        dinnerCal: dinnerCal,
         snack: document.getElementById('snackInput').value,
-        snackCal: parseInt(document.getElementById('snackCal').value) || 0,
+        snackCal: snackCal,
         created_at: existingIndex >= 0 ? diets[existingIndex].created_at : Date.now(),
         updated_at: Date.now()
     };
@@ -1070,10 +600,27 @@ function selectMood(mood) {
 }
 
 function openDiaryModal() {
+    editingDiaryId = null;
     selectedMood = 3;
     document.getElementById('diaryTitle').value = '';
     document.getElementById('diaryContent').value = '';
+    document.getElementById('diaryModalTitle').textContent = '📝 写日记';
     selectMood(3);
+    openModal('diaryModal');
+}
+
+function editDiary(id) {
+    const diary = diaries.find(d => d.id === id);
+    if (!diary) return;
+    
+    editingDiaryId = id;
+    currentDate = new Date(diary.date);
+    selectedMood = diary.mood || 3;
+    
+    document.getElementById('diaryTitle').value = diary.title || '';
+    document.getElementById('diaryContent').value = diary.content || '';
+    document.getElementById('diaryModalTitle').textContent = '✏️ 编辑日记';
+    selectMood(selectedMood);
     openModal('diaryModal');
 }
 
@@ -1086,18 +633,34 @@ function saveDiary() {
         return;
     }
     
-    diaries.unshift({
-        id: generateId(),
-        date: formatDate(currentDate).full,
-        title: title || '无标题',
-        content: content,
-        mood: selectedMood,
-        created_at: Date.now(),
-        updated_at: Date.now()
-    });
+    if (editingDiaryId) {
+        // 编辑现有日记
+        const index = diaries.findIndex(d => d.id === editingDiaryId);
+        if (index >= 0) {
+            diaries[index] = {
+                ...diaries[index],
+                title: title || '无标题',
+                content: content,
+                mood: selectedMood,
+                updated_at: Date.now()
+            };
+        }
+    } else {
+        // 新建日记
+        diaries.unshift({
+            id: generateId(),
+            date: formatDate(currentDate).full,
+            title: title || '无标题',
+            content: content,
+            mood: selectedMood,
+            created_at: Date.now(),
+            updated_at: Date.now()
+        });
+    }
     
     Storage.set('diaries', diaries);
     closeModal('diaryModal');
+    editingDiaryId = null;
     renderAll();
 }
 
@@ -1133,7 +696,7 @@ function renderDiaryList() {
         const moodColor = moodColors[(diary.mood || 3) - 1] || '#94a3b8';
         
         return `
-            <div class="diary-card">
+            <div class="diary-card" onclick="editDiary('${diary.id}')" style="cursor:pointer;">
                 <div class="diary-header">
                     <div style="display:flex;align-items:center;gap:16px;">
                         <div class="diary-date" style="background:${moodColor}20;border:2px solid ${moodColor};">
@@ -1142,12 +705,12 @@ function renderDiaryList() {
                         </div>
                         <div>
                             <div class="diary-title">${diary.title}</div>
-                            <div style="color:#94a3b8;font-size:13px;">${dateInfo.weekday}</div>
+                            <div style="color:#94a3b8;font-size:13px;">${dateInfo.weekday} · 點擊編輯</div>
                         </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="display:flex;align-items:center;gap:12px;" onclick="event.stopPropagation();">
                         <div style="font-size:32px;">${mood}</div>
-                        <i class="fas fa-trash" style="color:#ef4444;cursor:pointer;" onclick="deleteDiary('${diary.id}')"></i>
+                        <i class="fas fa-trash" style="color:#ef4444;cursor:pointer;padding:8px;" onclick="deleteDiary('${diary.id}')"></i>
                     </div>
                 </div>
                 ${diary.content ? `<div class="diary-content">${diary.content}</div>` : ''}
