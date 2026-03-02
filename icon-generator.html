@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DayFlow 圖標生成器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 { color: #1e293b; }
+        .preview {
+            width: 200px;
+            height: 200px;
+            margin: 30px auto;
+            border-radius: 32px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .sizes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 30px 0;
+        }
+        .size-btn {
+            padding: 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            transition: all 0.2s;
+        }
+        .size-btn:hover {
+            border-color: #6366f1;
+            background: #f5f3ff;
+        }
+        .generate-all {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .instructions {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-top: 30px;
+            text-align: left;
+            color: #64748b;
+        }
+        .instructions h3 {
+            color: #1e293b;
+            margin-top: 0;
+        }
+        .instructions ol {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 DayFlow 圖標生成器</h1>
+        
+        <div class="preview">
+            <svg id="icon-svg" viewBox="0 0 512 512" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <rect width="512" height="512" rx="128" fill="url(#gradient)"/>
+                <text x="256" y="340" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+                      font-size="280" font-weight="bold" text-anchor="middle" fill="white">🌊</text>
+            </svg>
+        </div>
+        
+        <p style="color: #64748b;">點擊下方按鈕下載各種尺寸的圖標</p>
+        
+        <div class="sizes">
+            <button class="size-btn" onclick="downloadIcon(72)">📱 72x72 (Android)</button>
+            <button class="size-btn" onclick="downloadIcon(96)">📱 96x96 (Android)</button>
+            <button class="size-btn" onclick="downloadIcon(128)">💻 128x128</button>
+            <button class="size-btn" onclick="downloadIcon(144)">📱 144x144</button>
+            <button class="size-btn" onclick="downloadIcon(152)">🍎 152x152 (iOS)</button>
+            <button class="size-btn" onclick="downloadIcon(192)">📱 192x192</button>
+            <button class="size-btn" onclick="downloadIcon(384)">💻 384x384</button>
+            <button class="size-btn" onclick="downloadIcon(512)">📱 512x512</button>
+        </div>
+        
+        <button class="generate-all" onclick="downloadAll()">📦 一鍵下載全部圖標</button>
+        
+        <div class="instructions">
+            <h3>📋 使用說明</h3>
+            <ol>
+                <li>點擊「一鍵下載全部圖標」按鈕</li>
+                <li>解壓下載的 ZIP 文件</li>
+                <li>將所有圖標上傳到 GitHub 倉庫根目錄</li>
+                <li>部署後，PWA 就能顯示正確的圖標了</li>
+            </ol>
+            <p><strong>提示：</strong>如果無法下載，可以截圖預覽區域的圖標，然後用圖片編輯工具調整大小。</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        function downloadIcon(size) {
+            const svg = document.getElementById('icon-svg');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            const img = new Image();
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+                
+                const pngUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `icon-${size}x${size}.png`;
+                link.href = pngUrl;
+                link.click();
+            };
+            
+            img.src = url;
+        }
+        
+        async function downloadAll() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            const zip = new JSZip();
+            
+            for (const size of sizes) {
+                const pngData = await generatePNG(size);
+                zip.file(`icon-${size}x${size}.png`, pngData, {base64: true});
+            }
+            
+            const content = await zip.generateAsync({type: 'blob'});
+            const link = document.createElement('a');
+            link.download = 'dayflow-icons.zip';
+            link.href = URL.createObjectURL(content);
+            link.click();
+        }
+        
+        function generatePNG(size) {
+            return new Promise((resolve) => {
+                const svg = document.getElementById('icon-svg');
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = size;
+                canvas.height = size;
+                
+                const img = new Image();
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const url = URL.createObjectURL(svgBlob);
+                
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, size, size);
+                    URL.revokeObjectURL(url);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const base64 = dataUrl.split(',')[1];
+                    resolve(base64);
+                };
+                
+                img.src = url;
+            });
+        }
+    </script>
+</body>
+</html>
