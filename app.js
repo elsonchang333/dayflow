@@ -215,6 +215,18 @@ async function syncToCloud() {
             if (error) console.error('Diaries sync error:', error);
         }
         
+        // 上傳 schedules
+        if (schedules.length > 0) {
+            const schedulesWithUser = schedules.map(s => ({
+                ...s,
+                user_id: userId
+            }));
+            const { error } = await supabaseClient
+                .from('schedules')
+                .upsert(schedulesWithUser, { onConflict: 'id' });
+            if (error) console.error('Schedules sync error:', error);
+        }
+        
         lastSyncTime = Date.now();
         updateLastSyncDisplay();
         
@@ -263,11 +275,20 @@ async function loadCloudData() {
         if (diariesError) console.error('Diaries load error:', diariesError);
         else if (diariesData) diaries = mergeArrays(diaries, diariesData);
         
+        // 下載 schedules
+        const { data: schedulesData, error: schedulesError } = await supabaseClient
+            .from('schedules')
+            .select('*')
+            .eq('user_id', userId);
+        if (schedulesError) console.error('Schedules load error:', schedulesError);
+        else if (schedulesData) schedules = mergeArrays(schedules, schedulesData);
+        
         // 保存到本地
         Storage.set('todos', todos);
         Storage.set('habits', habits);
         Storage.set('diets', diets);
         Storage.set('diaries', diaries);
+        Storage.set('schedules', schedules);
         
         renderAll();
         
