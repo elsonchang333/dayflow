@@ -46,6 +46,7 @@ let habits = safeGet('habits', []);
 let diets = safeGet('diets', []);
 let diaries = safeGet('diaries', []);
 let pomodoroHistory = safeGet('pomodoroHistory', []);
+let schedules = safeGet('schedules', []); // 行程数据
 let currentDate = new Date();
 let selectedMood = 3;
 let editingDiaryId = null; // 当前编辑的日记ID
@@ -605,14 +606,143 @@ function renderAll() {
     const pomoEl = document.getElementById('pomodoroDayCount');
     if (pomoEl) pomoEl.textContent = todayPomos;
     
+    // Schedules - 更新行程數量顯示
+    const todaySchedules = schedules.filter(s => s.date === dateStr);
+    const scheduleEl = document.getElementById('scheduleCount');
+    if (scheduleEl) scheduleEl.textContent = todaySchedules.length;
+    
+    // Render schedules list
+    renderScheduleList(todaySchedules);
+    
     // Review
-    renderReview(todayTodos, checkedHabits, totalCal);
+    renderReview(todayTodos, checkedHabits, totalCal, todaySchedules);
     
     // Stats
     updateStats();
 }
 
-function renderReview(todayTodos, checkedHabits, totalCal) {
+// ==================== Schedule Functions ====================
+function renderScheduleList(todaySchedules) {
+    const scheduleSection = document.getElementById('scheduleSection');
+    const scheduleList = document.getElementById('scheduleList');
+    
+    if (!scheduleSection || !scheduleList) return;
+    
+    if (todaySchedules.length === 0) {
+        scheduleSection.style.display = 'none';
+        return;
+    }
+    
+    scheduleSection.style.display = 'block';
+    
+    // Sort by time
+    const sorted = [...todaySchedules].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    
+    scheduleList.innerHTML = sorted.map(schedule => {
+        const isPast = schedule.time && new Date(`${schedule.date}T${schedule.time}`) < new Date();
+        return `
+            <div style="display: flex; align-items: center; padding: 16px; background: ${isPast ? '#f8fafc' : 'white'}; 
+                        border-radius: 12px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        border-left: 4px solid ${getScheduleTypeColor(schedule.type)};">
+                <div style="width: 60px; text-align: center; padding-right: 12px; border-right: 1px solid #e2e8f0;">
+                    <div style="font-size: 18px; font-weight: 700; color: ${isPast ? '#94a3b8' : '#1e293b'};">
+                        ${schedule.time || '--:--'}
+                    </div>
+                </div>
+                <div style="flex: 1; padding: 0 12px;">
+                    <div style="font-weight: 600; color: ${isPast ? '#94a3b8' : '#1e293b'}; margin-bottom: 4px;">
+                        ${schedule.title}
+                    </div>
+                    <div style="font-size: 12px; color: #64748b;">
+                        ${schedule.location ? '📍 ' + schedule.location : ''}
+                        ${schedule.reminder ? ' ⏰ ' + schedule.reminder : ''}
+                    </div>
+                </div>
+                <button onclick="deleteSchedule('${schedule.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 8px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function getScheduleTypeColor(type) {
+    const colors = {
+        work: '#6366f1',
+        personal: '#10b981',
+        meeting: '#f59e0b',
+        exercise: '#ef4444',
+        study: '#8b5cf6',
+        other: '#64748b'
+    };
+    return colors[type] || colors.other;
+}
+
+function openScheduleModal() {
+    // Reset form
+    document.getElementById('scheduleTitle').value = '';
+    document.getElementById('scheduleTime').value = '';
+    document.getElementById('scheduleLocation').value = '';
+    document.getElementById('scheduleType').value = 'work';
+    document.getElementById('scheduleReminder').value = '0';
+    
+    // Set default date to current selected date
+    const dateStr = formatDate(currentDate).full;
+    document.getElementById('scheduleDate').value = dateStr;
+    
+    openModal('scheduleModal');
+}
+
+function saveSchedule() {
+    const title = document.getElementById('scheduleTitle').value.trim();
+    const time = document.getElementById('scheduleTime').value;
+    const location = document.getElementById('scheduleLocation').value.trim();
+    const type = document.getElementById('scheduleType').value;
+    const reminder = document.getElementById('scheduleReminder').value;
+    const date = document.getElementById('scheduleDate').value;
+    
+    if (!title) {
+        alert('请输入行程标题');
+        return;
+    }
+    
+    if (!date) {
+        alert('请选择日期');
+        return;
+    }
+    
+    const schedule = {
+        id: generateId(),
+        title,
+        date,
+        time,
+        location,
+        type,
+        reminder,
+        created_at: Date.now()
+    };
+    
+    schedules.push(schedule);
+    Storage.set('schedules', schedules);
+    
+    closeModal('scheduleModal');
+    renderAll();
+    
+    // If added for current date, show success message
+    if (date === formatDate(currentDate).full) {
+        console.log('✅ Schedule added for today:', title);
+    }
+}
+
+function deleteSchedule(id) {
+    if (confirm('确定要删除这个行程吗？')) {
+        schedules = schedules.filter(s => s.id !== id);
+        Storage.set('schedules', schedules);
+        renderAll();
+    }
+}
+
+function renderReview(todayTodos, checkedHabits, totalCal, todaySchedules) {
     const reviewContent = document.getElementById('reviewContent');
     
     console.log('📊 renderReview:', { todos: todayTodos.length, habits: checkedHabits.length, calories: totalCal });
