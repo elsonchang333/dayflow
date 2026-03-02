@@ -397,6 +397,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDate();
     renderAll();
     initPomodoro();
+    
+    // 顯示默認頁面（記錄頁）
+    const todayPage = document.getElementById('todayPage');
+    if (todayPage) {
+        todayPage.style.display = 'block';
+    }
+    
+    // 設置底部導航活躍狀態
+    const todayBtn = document.querySelector('[data-page="today"]');
+    if (todayBtn) {
+        todayBtn.classList.add('active');
+    }
 });
 
 function initSettings() {
