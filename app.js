@@ -1049,10 +1049,12 @@ function selectMood(mood) {
 function openDiaryModal() {
     editingDiaryId = null;
     selectedMood = 3;
+    modalDates.diary = new Date(currentDate); // 使用当前选中的日期
     document.getElementById('diaryTitle').value = '';
     document.getElementById('diaryContent').value = '';
     document.getElementById('diaryModalTitle').textContent = '📝 写日记';
     selectMood(3);
+    updateModalDateDisplay('diary'); // 更新日期显示
     openModal('diaryModal');
 }
 
@@ -1061,19 +1063,21 @@ function editDiary(id) {
     if (!diary) return;
     
     editingDiaryId = id;
-    currentDate = new Date(diary.date);
+    modalDates.diary = new Date(diary.date); // 使用日记的日期
     selectedMood = diary.mood || 3;
     
     document.getElementById('diaryTitle').value = diary.title || '';
     document.getElementById('diaryContent').value = diary.content || '';
     document.getElementById('diaryModalTitle').textContent = '✏️ 编辑日记';
     selectMood(selectedMood);
+    updateModalDateDisplay('diary'); // 更新日期显示
     openModal('diaryModal');
 }
 
 function saveDiary() {
     const title = document.getElementById('diaryTitle').value.trim();
     const content = document.getElementById('diaryContent').value.trim();
+    const diaryDate = formatDate(modalDates.diary).full; // 使用模态框的日期
     
     if (!title && !content) {
         alert('请填写标题或内容');
@@ -1089,6 +1093,7 @@ function saveDiary() {
                 title: title || '无标题',
                 content: content,
                 mood: selectedMood,
+                date: diaryDate, // 更新日期
                 updated_at: Date.now()
             };
         }
@@ -1096,7 +1101,7 @@ function saveDiary() {
         // 新建日记
         diaries.unshift({
             id: generateId(),
-            date: formatDate(currentDate).full,
+            date: diaryDate, // 使用模态框的日期
             title: title || '无标题',
             content: content,
             mood: selectedMood,
@@ -1891,6 +1896,9 @@ function onModalDateChange(type) {
             renderHabitListForDate(formatDate(modalDates.habit).full);
         } else if (type === 'diet') {
             loadDietForDate(formatDate(modalDates.diet).full);
+        } else if (type === 'diary') {
+            // Diary doesn't need to refresh list, just update the date display
+            console.log('Diary date changed to:', formatDate(modalDates.diary).full);
         }
     }
 }
