@@ -958,7 +958,7 @@
                 <div class="quick-icon">🍽️</div>
                 <div class="quick-text">饮食</div>
             </button>
-            <button class="quick-btn" onclick="alert('行程功能開發中！')">
+            <button class="quick-btn" onclick="openScheduleModal()">
                 <div class="quick-icon">📅</div>
                 <div class="quick-text">行程</div>
             </button>
@@ -1085,6 +1085,12 @@
         <div class="section" id="habitSection" style="display:none;">
             <div class="section-title">✅ 习惯打卡</div>
             <div class="habit-grid" id="habitList"></div>
+        </div>
+        
+        <!-- Today's Schedules -->
+        <div class="section" id="scheduleSection" style="display:none;">
+            <div class="section-title">📅 今日行程</div>
+            <div id="scheduleList"></div>
         </div>
         
         <!-- Today Review -->
@@ -1696,6 +1702,57 @@
         </div>
     </div>
     
+    <!-- Schedule Modal -->
+    <div class="modal" id="scheduleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📅 添加行程</div>
+                <button class="modal-close" onclick="closeModal('scheduleModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">行程标题 *</label>
+                    <input type="text" class="input-field" id="scheduleTitle" placeholder="例如：参加会议、健身...">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">日期 *</label>
+                    <input type="date" class="input-field" id="scheduleDate">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">时间</label>
+                    <input type="time" class="input-field" id="scheduleTime">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">地点</label>
+                    <input type="text" class="input-field" id="scheduleLocation" placeholder="例如：会议室A、健身房...">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">类型</label>
+                    <select class="input-field" id="scheduleType" style="height: 48px;">
+                        <option value="work">💼 工作</option>
+                        <option value="personal">🏠 个人</option>
+                        <option value="meeting">👥 会议</option>
+                        <option value="exercise">💪 运动</option>
+                        <option value="study">📚 学习</option>
+                        <option value="other">📌 其他</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">提醒</label>
+                    <select class="input-field" id="scheduleReminder" style="height: 48px;">
+                        <option value="0">不提醒</option>
+                        <option value="5">提前 5 分钟</option>
+                        <option value="10">提前 10 分钟</option>
+                        <option value="15">提前 15 分钟</option>
+                        <option value="30">提前 30 分钟</option>
+                        <option value="60">提前 1 小时</option>
+                    </select>
+                </div>
+                <button class="save-btn" onclick="saveSchedule()">💾 保存行程</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Login Modal -->
     <div class="modal" id="loginModal">
         <div class="modal-content">
@@ -1747,6 +1804,6 @@
         </button>
     </div>
     
-    <script src="app.js?v=108"></script>
+    <script src="app.js?v=109"></script>
 </body>
 </html>
