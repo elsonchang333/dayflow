@@ -344,6 +344,33 @@ function showSyncLoading(show) {
     }
 }
 
+// ==================== Sync All (上傳並下載) ====================
+async function syncAll() {
+    if (!currentUser || !supabaseClient) {
+        alert('請先登入');
+        return;
+    }
+    
+    showSyncLoading(true);
+    
+    try {
+        // 1. 先上傳本地數據到雲端
+        await syncToCloud();
+        
+        // 2. 然後從雲端下載最新數據
+        await loadCloudData();
+        
+        // 3. 顯示成功訊息
+        alert('✅ 同步完成！');
+        
+    } catch (e) {
+        console.error('Sync all error:', e);
+        alert('❌ 同步失敗，請檢查網路連線');
+    } finally {
+        showSyncLoading(false);
+    }
+}
+
 // ==================== Lock App ====================
 function lockApp() {
     localStorage.removeItem('dayflow_unlocked');
