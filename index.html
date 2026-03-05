@@ -972,6 +972,10 @@
                 <div class="quick-icon">✅</div>
                 <div class="quick-text">习惯</div>
             </button>
+            <button class="quick-btn" onclick="openExpenseModal()">
+                <div class="quick-icon">💰</div>
+                <div class="quick-text">记账</div>
+            </button>
         </div>
         
         <!-- Date Selector -->
@@ -1077,6 +1081,11 @@
                     <div class="overview-icon">📅</div>
                     <div class="overview-count" id="scheduleCount">0</div>
                     <div class="overview-label">行程</div>
+                </div>
+                <div class="overview-card" onclick="openExpenseModal()">
+                    <div class="overview-icon">💰</div>
+                    <div class="overview-count" id="expenseCount">¥0</div>
+                    <div class="overview-label">支出</div>
                 </div>
             </div>
         </div>
@@ -1755,6 +1764,50 @@
                     </select>
                 </div>
                 <button class="save-btn" onclick="saveSchedule()">💾 保存行程</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Expense Modal -->
+    <div class="modal" id="expenseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">💰 记账</div>
+                <button class="modal-close" onclick="closeModal('expenseModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align:center;margin-bottom:16px;padding:12px;background:#f0fdf4;border-radius:12px;">
+                    <div style="font-size:14px;color:#166534;">📅 <span id="expenseDateDisplay">--</span></div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">金额 (¥) *</label>
+                    <input type="number" class="input-field" id="expenseAmount" placeholder="例如：50" min="0" step="0.01">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">分类</label>
+                    <select class="input-field" id="expenseCategory" style="height: 48px;">
+                        <option value="food">🍽️ 餐饮</option>
+                        <option value="transport">🚗 交通</option>
+                        <option value="shopping">🛍️ 购物</option>
+                        <option value="entertainment">🎮 娱乐</option>
+                        <option value="bills">💡 账单</option>
+                        <option value="other">📦 其他</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">备注</label>
+                    <input type="text" class="input-field" id="expenseNote" placeholder="例如：午餐、打车...">
+                </div>
+                
+                <button class="save-btn" onclick="saveExpenseFromModal()">➕ 添加支出</button>
+                
+                <div style="margin-top:24px;">
+                    <div class="section-title" style="margin-bottom:12px;">📋 今日记录</div>
+                    <div id="expenseList" style="max-height:300px;overflow-y:auto;"></div>
+                </div>
             </div>
         </div>
     </div>
