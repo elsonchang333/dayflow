@@ -1839,6 +1839,127 @@
         </div>
     </div>
     
+    <!-- AI Insight Page -->
+    <div class="page" id="aiinsight-page" style="display: none;">
+        <div class="header">
+            <div class="date-main">🤖 AI 洞察</div>
+            <div class="date-sub">你的成长分析师</div>
+        </div>
+        
+        <div class="view-switcher">
+            <button class="switch-btn active" id="weekly-view-btn" onclick="showAIView('weekly')">周报</button>
+            <button class="switch-btn" id="trend-view-btn" onclick="showAIView('trend')">趋势</button>
+        </div>
+        
+        <div class="content" id="ai-weekly-view">
+            <!-- 周报内容 -->
+            <div id="weekly-report-content">
+                <div class="loading-state">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: var(--primary);"></i>
+                    <p style="margin-top: 16px; color: var(--text-secondary);">AI 分析中...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content" id="ai-trend-view" style="display: none;">
+            <!-- 趋势内容 -->
+            <div class="stat-card">
+                <div class="section-title">📈 7天心情趋势</div>
+                <div id="mood-trend-chart" style="margin-top: 16px;"></div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="section-title">📊 行为关联</div>
+                <div id="behavior-correlation" style="margin-top: 12px;">
+                    <p style="color: var(--text-secondary); font-size: 14px;">💡 专注时间长的日子，心情指数平均高出 12%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Community Page -->
+    <div class="page" id="community-page" style="display: none;">
+        <div class="header" style="padding-top: 50px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div class="date-main">🏘️ 广场</div>
+                    <div class="date-sub" id="community-active-users">0 人今日活跃</div>
+                </div>
+                <button onclick="shareWeeklyToCommunity()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; cursor: pointer;">
+                    <i class="fas fa-share-alt" style="margin-right: 6px;"></i>分享周报
+                </button>
+            </div>
+        </div>
+        
+        <div class="filter-container">
+            <button class="filter-chip active" onclick="filterPosts('all')">
+                <i class="fas fa-list" style="margin-right: 4px;"></i>全部
+            </button>
+            <button class="filter-chip" onclick="filterPosts('mood')">
+                <i class="fas fa-heart" style="margin-right: 4px;"></i>心情
+            </button>
+            <button class="filter-chip" onclick="filterPosts('achievement')">
+                <i class="fas fa-trophy" style="margin-right: 4px;"></i>成就
+            </button>
+            <button class="filter-chip" onclick="filterPosts('insight')">
+                <i class="fas fa-lightbulb" style="margin-right: 4px;"></i>感悟
+            </button>
+        </div>
+        
+        <div class="content" id="community-posts">
+            <!-- 帖子列表 -->
+        </div>
+        
+        <button class="fab-btn" onclick="showPostModal()">
+            <i class="fas fa-plus" style="margin-right: 8px;"></i>分享心情
+        </button>
+    </div>
+    
+    <!-- Post Modal -->
+    <div class="modal" id="postModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">分享心情</div>
+                <button class="modal-close" onclick="closeModal('postModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">类型</label>
+                    <div class="type-selector">
+                        <button class="type-chip active" id="post-type-mood" onclick="selectPostType('mood')">
+                            <i class="fas fa-heart"></i> 心情
+                        </button>
+                        <button class="type-chip" id="post-type-achievement" onclick="selectPostType('achievement')">
+                            <i class="fas fa-trophy"></i> 成就
+                        </button>
+                        <button class="type-chip" id="post-type-insight" onclick="selectPostType('insight')">
+                            <i class="fas fa-lightbulb"></i> 感悟
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">心情</label>
+                    <div class="mood-selector">
+                        <button class="mood-chip active" id="mood-happy" onclick="selectMood('happy')">😊 开心</button>
+                        <button class="mood-chip" id="mood-calm" onclick="selectMood('calm')">😌 平静</button>
+                        <button class="mood-chip" id="mood-tired" onclick="selectMood('tired')">😴 疲惫</button>
+                        <button class="mood-chip" id="mood-anxious" onclick="selectMood('anxious')">😰 焦虑</button>
+                        <button class="mood-chip" id="mood-excited" onclick="selectMood('excited')">🤩 兴奋</button>
+                        <button class="mood-chip" id="mood-grateful" onclick="selectMood('grateful')">🙏 感恩</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">内容</label>
+                    <textarea class="input-field" id="postContent" placeholder="分享今天的心情、成就或感悟..." style="min-height: 100px; resize: none;"></textarea>
+                </div>
+                
+                <button class="save-btn" onclick="submitPost()">🚀 发布</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Bottom Nav -->
     <div class="bottom-nav">
         <button class="nav-btn active" onclick="showPage('today')" data-page="today">
@@ -1853,13 +1974,13 @@
             <div class="nav-icon"><i class="fas fa-calendar-alt"></i></div>
             <div class="nav-text">日历</div>
         </button>
-        <button class="nav-btn" onclick="showPage('diary')" data-page="diary">
-            <div class="nav-icon"><i class="fas fa-book"></i></div>
-            <div class="nav-text">日记</div>
+        <button class="nav-btn" onclick="showPage('aiinsight')" data-page="aiinsight">
+            <div class="nav-icon"><i class="fas fa-magic"></i></div>
+            <div class="nav-text">AI洞察</div>
         </button>
-        <button class="nav-btn" onclick="showPage('settings')" data-page="settings">
-            <div class="nav-icon"><i class="fas fa-cog"></i></div>
-            <div class="nav-text">设置</div>
+        <button class="nav-btn" onclick="showPage('community')" data-page="community">
+            <div class="nav-icon"><i class="fas fa-users"></i></div>
+            <div class="nav-text">广场</div>
         </button>
     </div>
     

@@ -189,10 +189,74 @@ body { font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 
 #authModal { background: #f5f5f5; }
 #authModal .modal-content { border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
 
+/* AI Insight & Community Styles */
+
+/* View Switcher */
+.view-switcher { display: flex; background: white; margin: 16px; border-radius: 12px; padding: 4px; gap: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.switch-btn { flex: 1; padding: 10px; border: none; background: transparent; border-radius: 8px; font-size: 14px; font-weight: 600; color: #64748b; cursor: pointer; }
+.switch-btn.active { background: #6366f1; color: white; }
+
+/* AI Report Cards */
+.ai-report-card { background: white; border-radius: 20px; padding: 24px; margin: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.ai-score-circle { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 20px; }
+.ai-score-value { font-size: 42px; font-weight: 700; color: white; }
+.ai-score-label { font-size: 12px; color: rgba(255,255,255,0.8); }
+.ai-trend-badge { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; background: #f1f5f9; border-radius: 16px; font-size: 14px; font-weight: 600; }
+.ai-insight-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 12px; margin-bottom: 8px; }
+.ai-insight-bullet { font-size: 20px; color: #6366f1; }
+.ai-insight-text { flex: 1; font-size: 14px; color: #1e293b; line-height: 1.5; }
+.ai-achievement-badge { display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 20px; margin: 4px; font-size: 13px; color: #92400e; font-weight: 500; }
+.ai-comment-card { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 20px; padding: 20px; margin: 16px; color: white; }
+.ai-comment-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.ai-comment-text { font-size: 15px; line-height: 1.6; opacity: 0.95; }
+
+/* Mood Chart */
+.mood-chart-container { margin: 16px; }
+.mood-bar-row { display: flex; align-items: center; margin-bottom: 12px; }
+.mood-bar-label { width: 40px; font-size: 14px; color: #64748b; }
+.mood-bar-wrapper { flex: 1; height: 24px; background: #f1f5f9; border-radius: 12px; overflow: hidden; margin: 0 12px; }
+.mood-bar { height: 100%; border-radius: 12px; transition: width 0.3s ease; }
+.mood-bar-value { width: 40px; font-size: 14px; font-weight: 600; color: #1e293b; text-align: right; }
+
+/* Community Styles */
+.filter-container { display: flex; gap: 8px; padding: 16px; overflow-x: auto; background: white; border-bottom: 1px solid #f1f5f9; }
+.filter-chip { display: flex; align-items: center; padding: 8px 14px; background: #f1f5f9; border: none; border-radius: 20px; font-size: 13px; color: #64748b; cursor: pointer; white-space: nowrap; }
+.filter-chip.active { background: #6366f1; color: white; }
+.fab-btn { position: fixed; bottom: 100px; right: 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 14px 24px; border-radius: 28px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; gap: 8px; z-index: 50; }
+.post-card { background: white; border-radius: 16px; padding: 16px; margin: 12px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.post-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.post-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.post-meta { flex: 1; }
+.post-username { font-size: 15px; font-weight: 600; color: #1e293b; }
+.post-time { font-size: 12px; color: #94a3b8; }
+.post-type-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.post-content { font-size: 15px; color: #1e293b; line-height: 1.6; margin-bottom: 12px; }
+.post-actions { display: flex; gap: 24px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.post-action-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; }
+.post-action-btn.liked { color: #ef4444; }
+
+/* Post Modal Styles */
+.type-selector { display: flex; gap: 8px; margin-bottom: 16px; }
+.type-chip { display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: #f1f5f9; border: none; border-radius: 20px; font-size: 13px; color: #64748b; cursor: pointer; }
+.type-chip.active { background: #6366f1; color: white; }
+.mood-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.mood-chip { display: flex; align-items: center; gap: 4px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px; cursor: pointer; }
+.mood-chip.active { background: #6366f1; color: white; border-color: #6366f1; }
+
+/* Loading State */
+.loading-state { text-align: center; padding: 60px 20px; }
+
+/* Empty State */
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state i { font-size: 64px; color: #cbd5e1; margin-bottom: 16px; }
+.empty-title { font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 8px; }
+.empty-text { font-size: 14px; color: #94a3b8; }
+
 /* Responsive */
 @media (max-width: 480px) {
   .quick-actions { grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .quick-btn { padding: 12px 4px; }
   .quick-icon { font-size: 24px; }
   .overview-cards { grid-template-columns: repeat(2, 1fr); }
+  .fab-btn { bottom: 90px; right: 16px; padding: 12px 20px; font-size: 14px; }
 }

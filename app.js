@@ -697,12 +697,502 @@ function initEventListeners() {
 }
 
 // Main initialization
+// ==================== AI INSIGHT FUNCTIONS ====================
+
+const AI_CONFIG = {
+  EMOTION_KEYWORDS: {
+    positive: ['开心', '快乐', '满足', '充实', '兴奋', '期待', '感谢', '幸福', '舒服', '棒', '好', '成功', '完成', '赢', '进步'],
+    negative: ['焦虑', '压力', '累', '疲惫', '难过', '失望', '担心', '紧张', '烦躁', '生气', '无聊', '孤独', '郁闷', '痛苦', '失败'],
+    neutral: ['平淡', '普通', '一般', '正常', '还行', '可以', '继续', '保持']
+  },
+  EMOTION_WEIGHTS: {
+    diary: 0.4,
+    tasks: 0.25,
+    habits: 0.2,
+    expenses: 0.1,
+    pomodoro: 0.05
+  }
+};
+
+function analyzeDiaryEmotion(content) {
+  const { EMOTION_KEYWORDS } = AI_CONFIG;
+  const text = content.toLowerCase();
+  
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let neutralCount = 0;
+  const foundKeywords = [];
+  
+  EMOTION_KEYWORDS.positive.forEach(word => {
+    if (text.includes(word)) {
+      positiveCount++;
+      foundKeywords.push(word);
+    }
+  });
+  
+  EMOTION_KEYWORDS.negative.forEach(word => {
+    if (text.includes(word)) {
+      negativeCount++;
+      foundKeywords.push(word);
+    }
+  });
+  
+  EMOTION_KEYWORDS.neutral.forEach(word => {
+    if (text.includes(word)) {
+      neutralCount++;
+      foundKeywords.push(word);
+    }
+  });
+  
+  const total = positiveCount + negativeCount + neutralCount || 1;
+  const positiveRatio = positiveCount / total;
+  const negativeRatio = negativeCount / total;
+  const score = Math.round(50 + (positiveRatio - negativeRatio) * 50);
+  
+  let primaryEmotion = '平静';
+  if (score >= 80) primaryEmotion = '非常开心';
+  else if (score >= 65) primaryEmotion = '开心';
+  else if (score >= 55) primaryEmotion = '满足';
+  else if (score >= 45) primaryEmotion = '平淡';
+  else if (score >= 35) primaryEmotion = '有点累';
+  else if (score >= 25) primaryEmotion = '焦虑';
+  else primaryEmotion = '压力大';
+  
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    primaryEmotion,
+    emotions: {
+      positive: parseFloat(positiveRatio.toFixed(2)),
+      negative: parseFloat(negativeRatio.toFixed(2)),
+      neutral: parseFloat((neutralCount / total).toFixed(2))
+    },
+    keywords: [...new Set(foundKeywords)],
+    confidence: Math.min(1, total * 0.2)
+  };
+}
+
+function generateWeeklyReport() {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - 6);
+  
+  const weekDiaries = AppState.diaries.filter(d => {
+    const dDate = new Date(d.date);
+    return dDate >= weekStart && dDate <= today;
+  });
+  
+  const weekTodos = AppState.todos.filter(t => {
+    const tDate = new Date(t.date);
+    return tDate >= weekStart && tDate <= today;
+  });
+  
+  const completedTodos = weekTodos.filter(t => t.completed).length;
+  const taskRate = weekTodos.length > 0 ? completedTodos / weekTodos.length : 0;
+  
+  const diaryAnalyses = weekDiaries.map(d => analyzeDiaryEmotion(d.content));
+  const avgMoodScore = diaryAnalyses.length > 0
+    ? diaryAnalyses.reduce((sum, a) => sum + a.score, 0) / diaryAnalyses.length
+    : 50;
+  
+  const insights = [];
+  if (taskRate >= 0.7) insights.push('任务完成率很高，效率满满！');
+  if (taskRate <= 0.3 && weekTodos.length > 0) insights.push('任务完成较少，试着分解大任务。');
+  if (avgMoodScore >= 70) insights.push('这周整体心情很好！');
+  if (avgMoodScore <= 45) insights.push('这周有点辛苦，记得对自己好一点。');
+  
+  const achievements = [];
+  if (completedTodos >= 15) achievements.push('✅ 任务收割机');
+  if (weekDiaries.length >= 5) achievements.push('📝 记录狂魔');
+  
+  return {
+    avgScore: Math.round(avgMoodScore),
+    taskCompleted: completedTodos,
+    taskTotal: weekTodos.length,
+    diaryCount: weekDiaries.length,
+    insights: insights.length > 0 ? insights : ['继续记录，见证自己的成长。'],
+    achievements: achievements,
+    aiComment: avgMoodScore >= 60 ? '这周表现不错，继续保持！' : '下周会更好，加油！'
+  };
+}
+
+function renderAIInsight() {
+  const report = generateWeeklyReport();
+  const container = document.getElementById('weekly-report-content');
+  
+  if (!container) return;
+  
+  container.innerHTML = `
+    <div class="ai-report-card">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px;">
+        <div class="ai-score-circle">
+          <div class="ai-score-value">${report.avgScore}</div>
+          <div class="ai-score-label">心情指数</div>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+        <div style="text-align: center; padding: 12px; background: #f8fafc; border-radius: 12px;">
+          <div style="font-size: 24px; font-weight: 700; color: #6366f1;">${report.taskCompleted}</div>
+          <div style="font-size: 12px; color: #64748b;">完成任务</div>
+        </div>
+        <div style="text-align: center; padding: 12px; background: #f8fafc; border-radius: 12px;">
+          <div style="font-size: 24px; font-weight: 700; color: #10b981;">${report.diaryCount}</div>
+          <div style="font-size: 12px; color: #64748b;">写日记</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="ai-comment-card">
+      <div class="ai-comment-title"><i class="fas fa-magic"></i> AI 评语</div>
+      <div class="ai-comment-text">${report.aiComment}</div>
+    </div>
+    
+    <div class="ai-report-card">
+      <div class="overview-title" style="margin-bottom: 16px;">💡 本周洞察</div>
+      ${report.insights.map(i => `
+        <div class="ai-insight-item">
+          <div class="ai-insight-bullet">•</div>
+          <div class="ai-insight-text">${i}</div>
+        </div>
+      `).join('')}
+    </div>
+    
+    ${report.achievements.length > 0 ? `
+    <div class="ai-report-card">
+      <div class="overview-title" style="margin-bottom: 16px;">🏆 本周成就</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        ${report.achievements.map(a => `<span class="ai-achievement-badge">${a}</span>`).join('')}
+      </div>
+    </div>
+    ` : ''}
+  `;
+}
+
+function showAIView(view) {
+  document.getElementById('weekly-view-btn').classList.toggle('active', view === 'weekly');
+  document.getElementById('trend-view-btn').classList.toggle('active', view === 'trend');
+  document.getElementById('ai-weekly-view').style.display = view === 'weekly' ? 'block' : 'none';
+  document.getElementById('ai-trend-view').style.display = view === 'trend' ? 'block' : 'none';
+  
+  if (view === 'weekly') {
+    renderAIInsight();
+  } else if (view === 'trend') {
+    renderMoodTrendChart();
+  }
+}
+
+function renderMoodTrendChart() {
+  const chartContainer = document.getElementById('mood-trend-chart');
+  if (!chartContainer) return;
+  
+  const days = ['日', '一', '二', '三', '四', '五', '六'];
+  const today = new Date();
+  let html = '';
+  
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = Utils.formatDate(date).full;
+    const diary = AppState.diaries.find(d => d.date === dateStr);
+    const score = diary ? analyzeDiaryEmotion(diary.content).score : 50;
+    const color = score >= 70 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+    
+    html += `
+      <div class="mood-bar-row">
+        <div class="mood-bar-label">${days[date.getDay()]}</div>
+        <div class="mood-bar-wrapper">
+          <div class="mood-bar" style="width: ${score}%; background: ${color};"></div>
+        </div>
+        <div class="mood-bar-value">${score}</div>
+      </div>
+    `;
+  }
+  
+  chartContainer.innerHTML = html;
+}
+
+// ==================== COMMUNITY FUNCTIONS ====================
+
+let currentPostType = 'mood';
+let currentMood = 'happy';
+
+const MOOD_OPTIONS = {
+  happy: { emoji: '😊', label: '开心', color: '#10b981' },
+  calm: { emoji: '😌', label: '平静', color: '#3b82f6' },
+  tired: { emoji: '😴', label: '疲惫', color: '#64748b' },
+  anxious: { emoji: '😰', label: '焦虑', color: '#f59e0b' },
+  excited: { emoji: '🤩', label: '兴奋', color: '#ec4899' },
+  grateful: { emoji: '🙏', label: '感恩', color: '#8b5cf6' }
+};
+
+const POST_TYPE_LABELS = {
+  mood: '心情',
+  achievement: '成就',
+  insight: '感悟'
+};
+
+// Load posts from localStorage
+function loadPosts() {
+  return LocalDB.get('community_posts') || [];
+}
+
+// Save posts to localStorage
+function savePosts(posts) {
+  LocalDB.set('community_posts', posts);
+}
+
+function renderCommunityPosts(filter = 'all') {
+  const container = document.getElementById('community-posts');
+  if (!container) return;
+  
+  let posts = loadPosts();
+  
+  if (filter !== 'all') {
+    posts = posts.filter(p => p.type === filter);
+  }
+  
+  // Sort by date, newest first
+  posts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  
+  if (posts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-users" style="font-size: 64px; color: #cbd5e1;"></i>
+        <div class="empty-title">广场空空如也</div>
+        <div class="empty-text">成为第一个分享心情的人吧！</div>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = posts.map(post => {
+    const moodInfo = MOOD_OPTIONS[post.mood] || MOOD_OPTIONS.happy;
+    const timeAgo = getTimeAgo(post.created_at);
+    
+    return `
+      <div class="post-card">
+        <div class="post-header">
+          <div class="post-avatar" style="background: ${moodInfo.color}20;">${moodInfo.emoji}</div>
+          <div class="post-meta">
+            <div class="post-username">${post.user_name || '匿名用户'}</div>
+            <div class="post-time">${timeAgo}</div>
+          </div>
+          <div class="post-type-badge" style="background: ${moodInfo.color}15; color: ${moodInfo.color};">
+            ${POST_TYPE_LABELS[post.type]}
+          </div>
+        </div>
+        <div class="post-content">${escapeHtml(post.content)}</div>
+        <div class="post-actions">
+          <button class="post-action-btn ${post.liked_by_me ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+            <i class="${post.liked_by_me ? 'fas' : 'far'} fa-heart"></i>
+            <span>${post.likes || 0}</span>
+          </button>
+          <button class="post-action-btn" onclick="sharePost('${post.id}')">
+            <i class="fas fa-share"></i>
+            <span>分享</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // Update active users count
+  const uniqueUsers = new Set(posts.map(p => p.user_id)).size;
+  const activeUsersEl = document.getElementById('community-active-users');
+  if (activeUsersEl) {
+    activeUsersEl.textContent = `${uniqueUsers + 1} 人今日活跃`;
+  }
+}
+
+function getTimeAgo(timestamp) {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes}分钟前`;
+  if (hours < 24) return `${hours}小时前`;
+  if (days < 7) return `${days}天前`;
+  return new Date(timestamp).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showPostModal() {
+  document.getElementById('postModal').classList.add('active');
+}
+
+function selectPostType(type) {
+  currentPostType = type;
+  document.querySelectorAll('.type-chip').forEach(chip => {
+    chip.classList.remove('active');
+  });
+  document.getElementById(`post-type-${type}`).classList.add('active');
+}
+
+function selectMood(mood) {
+  currentMood = mood;
+  document.querySelectorAll('.mood-chip').forEach(chip => {
+    chip.classList.remove('active');
+  });
+  document.getElementById(`mood-${mood}`).classList.add('active');
+}
+
+function submitPost() {
+  const content = document.getElementById('postContent')?.value?.trim();
+  
+  if (!content) {
+    showToast('请输入内容');
+    return;
+  }
+  
+  const newPost = {
+    id: Utils.generateId(),
+    user_id: AppState.currentUser?.id || 'anonymous',
+    user_name: AppState.currentUser?.email?.split('@')[0] || '匿名用户',
+    content: content,
+    mood: currentMood,
+    type: currentPostType,
+    likes: 0,
+    liked_by_me: false,
+    created_at: Date.now()
+  };
+  
+  const posts = loadPosts();
+  posts.unshift(newPost);
+  savePosts(posts);
+  
+  document.getElementById('postContent').value = '';
+  closeModal('postModal');
+  renderCommunityPosts();
+  showToast('发布成功！');
+}
+
+function toggleLike(postId) {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === postId);
+  
+  if (post) {
+    if (post.liked_by_me) {
+      post.likes = Math.max(0, post.likes - 1);
+      post.liked_by_me = false;
+    } else {
+      post.likes++;
+      post.liked_by_me = true;
+    }
+    savePosts(posts);
+    renderCommunityPosts();
+  }
+}
+
+function sharePost(postId) {
+  const posts = loadPosts();
+  const post = posts.find(p => p.id === postId);
+  
+  if (post) {
+    const text = `${post.user_name} 在DayFlow分享：\n${post.content}\n\n#DayFlow #心情分享`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'DayFlow 心情分享',
+        text: text
+      });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('已复制到剪贴板');
+      });
+    }
+  }
+}
+
+function shareWeeklyToCommunity() {
+  const report = generateWeeklyReport();
+  
+  if (report.achievements.length === 0) {
+    showToast('还没有足够的成就，继续努力！');
+    return;
+  }
+  
+  const achievement = report.achievements[0];
+  selectPostType('achievement');
+  selectMood('happy');
+  
+  const content = `本周成就：${achievement}\n\n心情指数：${report.avgScore}/100\n完成任务：${report.taskCompleted}个\n写日记：${report.diaryCount}天`;
+  
+  document.getElementById('postContent').value = content;
+  showPostModal();
+}
+
+function filterPosts(type) {
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.classList.remove('active');
+  });
+  event.target.closest('.filter-chip').classList.add('active');
+  renderCommunityPosts(type);
+}
+
+// ==================== PAGE NAVIGATION ====================
+
+function showPage(pageName) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(page => {
+    page.style.display = 'none';
+  });
+  
+  // Show selected page
+  const selectedPage = document.getElementById(pageName + '-page');
+  if (selectedPage) {
+    selectedPage.style.display = 'block';
+  }
+  
+  // Update nav buttons
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.page === pageName) {
+      btn.classList.add('active');
+    }
+  });
+  
+  // Page-specific initialization
+  if (pageName === 'aiinsight') {
+    renderAIInsight();
+  } else if (pageName === 'community') {
+    renderCommunityPosts();
+  }
+  
+  // Save current page
+  AppState.currentPage = pageName;
+}
+
+// Override the original showPage function
+window.showPage = showPage;
+
+// Make community functions globally available
+window.selectPostType = selectPostType;
+window.selectMood = selectMood;
+window.submitPost = submitPost;
+window.toggleLike = toggleLike;
+window.sharePost = sharePost;
+window.shareWeeklyToCommunity = shareWeeklyToCommunity;
+window.filterPosts = filterPosts;
+window.showAIView = showAIView;
+
 document.addEventListener('DOMContentLoaded', () => {
   initSupabase();
   loadData();
   initToday();
   initEventListeners();
   renderAll();
+  
+  // Initialize AI and Community
+  renderAIInsight();
+  renderCommunityPosts();
 
-  console.log('✅ DayFlow initialized with Expense Tracking');
+  console.log('✅ DayFlow initialized with AI Insight & Community');
 });
