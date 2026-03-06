@@ -826,65 +826,62 @@ function renderAIInsight() {
   const strokeDashoffset = circumference - (report.avgScore / 100) * circumference;
   
   container.innerHTML = `
-    <div class="ai-main-card">
+    <div class="ai-card">
       <!-- 环形进度条 -->
-      <div class="score-ring-container">
-        <svg class="score-ring-svg" viewBox="0 0 140 140">
-          <circle class="score-ring-bg" cx="70" cy="70" r="58"></circle>
-          <circle class="score-ring-progress" cx="70" cy="70" r="58" 
+      <div class="ai-score-ring">
+        <svg width="140" height="140">
+          <circle class="ai-score-ring-bg" cx="70" cy="70" r="58"></circle>
+          <circle class="ai-score-ring-progress" cx="70" cy="70" r="58" 
                   stroke-dasharray="${circumference}" 
                   stroke-dashoffset="${strokeDashoffset}"></circle>
         </svg>
-        <div class="score-content">
-          <div class="score-number">${report.avgScore}</div>
-          <div class="score-label">心情指数</div>
+        <div class="ai-score-content">
+          <div class="ai-score-number">${report.avgScore}</div>
+          <div class="ai-score-label">心情指数</div>
         </div>
       </div>
       
       <!-- 数据网格 -->
-      <div class="stats-grid-pro">
-        <div class="stat-item-pro">
-          <div class="stat-icon-pro" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe);">✅</div>
-          <div class="stat-value-pro">${report.taskCompleted}</div>
-          <div class="stat-label-pro">完成任务</div>
+      <div class="ai-stats-grid">
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe);">✅</div>
+          <div class="ai-stat-value">${report.taskCompleted}</div>
+          <div class="ai-stat-label">完成任务</div>
         </div>
-        <div class="stat-item-pro">
-          <div class="stat-icon-pro" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">📝</div>
-          <div class="stat-value-pro">${report.diaryCount}</div>
-          <div class="stat-label-pro">写日记</div>
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">📝</div>
+          <div class="ai-stat-value">${report.diaryCount}</div>
+          <div class="ai-stat-label">写日记</div>
         </div>
-        <div class="stat-item-pro">
-          <div class="stat-icon-pro" style="background: linear-gradient(135deg, #fef3c7, #fde68a);">📊</div>
-          <div class="stat-value-pro">${report.taskTotal}</div>
-          <div class="stat-label-pro">总任务</div>
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a);">📊</div>
+          <div class="ai-stat-value">${report.taskTotal}</div>
+          <div class="ai-stat-label">总任务</div>
         </div>
-        <div class="stat-item-pro">
-          <div class="stat-icon-pro" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8);">🎯</div>
-          <div class="stat-value-pro">${Math.round((report.taskCompleted / Math.max(report.taskTotal, 1)) * 100)}%</div>
-          <div class="stat-label-pro">完成率</div>
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8);">🎯</div>
+          <div class="ai-stat-value">${Math.round((report.taskCompleted / Math.max(report.taskTotal, 1)) * 100)}%</div>
+          <div class="ai-stat-label">完成率</div>
         </div>
       </div>
     </div>
     
     <!-- AI 评语 -->
-    <div class="ai-quote-card-pro">
-      <div class="ai-quote-title-pro">
+    <div class="ai-quote-card">
+      <div class="ai-quote-title">
         <i class="fas fa-robot"></i> AI 评语
       </div>
-      <div class="ai-quote-text-pro">${report.aiComment}</div>
+      <div class="ai-quote-text">${report.aiComment}</div>
     </div>
     
     <!-- 洞察列表 -->
-    <div class="insights-section-pro">
-      <div class="section-title-pro">
-        <i class="fas fa-lightbulb" style="color: #f59e0b;"></i> 本周洞察
-      </div>
+    <div class="ai-insights-list">
       ${report.insights.map((i, idx) => `
-        <div class="insight-card-pro">
-          <div class="insight-icon-pro">${['💡', '🎯', '✨', '📈'][idx % 4]}</div>
-          <div class="insight-content-pro">
-            <div class="insight-title-pro">洞察 ${idx + 1}</div>
-            <div class="insight-desc-pro">${i}</div>
+        <div class="ai-insight-card">
+          <div class="ai-insight-icon">${['💡', '🎯', '✨', '📈'][idx % 4]}</div>
+          <div class="ai-insight-content">
+            <div class="ai-insight-title">洞察 ${idx + 1}</div>
+            <div class="ai-insight-desc">${i}</div>
           </div>
         </div>
       `).join('')}
@@ -892,12 +889,12 @@ function renderAIInsight() {
     
     <!-- 成就徽章 -->
     ${report.achievements.length > 0 ? `
-    <div class="achievements-section-pro">
+    <div class="ai-achievements">
       <div class="ai-achievements-title">
         <i class="fas fa-trophy" style="color: #f59e0b;"></i> 本周成就
       </div>
-      <div class="achievement-badges-pro">
-        ${report.achievements.map(a => `<span class="badge-pro">${a}</span>`).join('')}
+      <div style="display: flex; flex-wrap: wrap; margin: -4px;">
+        ${report.achievements.map(a => `<span class="ai-badge">${a}</span>`).join('')}
       </div>
     </div>
     ` : ''}
@@ -936,9 +933,9 @@ function renderMoodTrendChart() {
                   'linear-gradient(180deg, #ef4444, #dc2626)';
     
     html += `
-      <div class="chart-bar-wrapper-pro">
-        <div class="chart-bar-pro" style="height: ${score}%; background: ${color};" data-value="${score}"></div>
-        <div class="chart-label-pro">${days[date.getDay()]}</div>
+      <div class="ai-trend-bar-wrapper">
+        <div class="ai-trend-bar" style="height: ${score}%; background: ${color};" data-value="${score}"></div>
+        <div class="ai-trend-label">${days[date.getDay()]}</div>
       </div>
     `;
   }
@@ -1006,24 +1003,24 @@ function renderCommunityPosts(filter = 'all') {
     const typeClass = post.type;
     
     return `
-      <div class="post-card-pro">
-        <div class="post-header-pro">
-          <div class="post-avatar-pro">${moodInfo.emoji}</div>
-          <div class="post-author-info-pro">
-            <div class="post-author-name-pro">${post.user_name || '匿名用户'}</div>
-            <div class="post-meta-pro">
-              <span class="post-time-pro">${timeAgo}</span>
-              <span class="post-type-tag-pro ${typeClass}">${POST_TYPE_LABELS[post.type]}</span>
+      <div class="post-item">
+        <div class="post-header-modern">
+          <div class="post-avatar-modern">${moodInfo.emoji}</div>
+          <div class="post-user-info">
+            <div class="post-username-modern">${post.user_name || '匿名用户'}</div>
+            <div class="post-meta-row">
+              <span class="post-time-modern">${timeAgo}</span>
+              <span class="post-tag ${typeClass}">${POST_TYPE_LABELS[post.type]}</span>
             </div>
           </div>
         </div>
-        <div class="post-content-pro">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
-        <div class="post-actions-pro">
-          <button class="post-action-btn-pro ${post.liked_by_me ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+        <div class="post-content-modern">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
+        <div class="post-actions-modern">
+          <button class="post-action-modern ${post.liked_by_me ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
             <i class="${post.liked_by_me ? 'fas' : 'far'} fa-heart"></i>
             <span class="post-action-count">${post.likes || 0}</span>
           </button>
-          <button class="post-action-btn-pro" onclick="sharePost('${post.id}')">
+          <button class="post-action-modern" onclick="sharePost('${post.id}')">
             <i class="fas fa-share-alt"></i>
             <span>分享</span>
           </button>
@@ -1040,7 +1037,7 @@ function renderCommunityPosts(filter = 'all') {
   }
   
   // Update filter pills
-  document.querySelectorAll('.filter-pill-pro').forEach(pill => {
+  document.querySelectorAll('.filter-pill').forEach(pill => {
     pill.classList.remove('active');
     if (pill.dataset.filter === filter) {
       pill.classList.add('active');

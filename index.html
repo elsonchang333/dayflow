@@ -1851,16 +1851,16 @@
             </defs>
         </svg>
         
-        <div class="ai-header-pro">
-            <div class="ai-header-title-pro">🤖 AI 洞察</div>
-            <div class="ai-header-subtitle-pro">你的个人成长分析师</div>
+        <div class="ai-header">
+            <div class="ai-header-title">🤖 AI 洞察</div>
+            <div class="ai-header-subtitle">你的个人成长分析师</div>
         </div>
         
-        <div class="segment-control-pro">
-            <button class="segment-btn-pro active" id="weekly-view-btn" onclick="showAIView('weekly')">
+        <div class="ai-segment-control">
+            <button class="ai-segment-btn active" id="weekly-view-btn" onclick="showAIView('weekly')">
                 <i class="fas fa-chart-pie"></i> 周报
             </button>
-            <button class="segment-btn-pro" id="trend-view-btn" onclick="showAIView('trend')">
+            <button class="ai-segment-btn" id="trend-view-btn" onclick="showAIView('trend')">
                 <i class="fas fa-chart-line"></i> 趋势
             </button>
         </div>
@@ -1908,104 +1908,104 @@
     
     <!-- Community Page - 专业设计 -->
     <div class="page" id="community-page" style="display: none;">
-        <div class="community-header-pro">
+        <div class="community-header">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <div class="community-title-pro">🏘️ 广场</div>
-                    <div class="community-subtitle-pro" id="community-active-users">0 人今日活跃</div>
+                    <div class="community-title">🏘️ 广场</div>
+                    <div class="community-subtitle" id="community-active-users">0 人今日活跃</div>
                 </div>
-                <button class="share-weekly-btn-pro" onclick="shareWeeklyToCommunity()">
+                <button class="community-share-btn" onclick="shareWeeklyToCommunity()">
                     <i class="fas fa-share-alt"></i>
                     <span>分享周报</span>
                 </button>
             </div>
         </div>
         
-        <div class="filter-bar-pro">
-            <button class="filter-pill-pro active" data-filter="all" onclick="filterPosts('all')">
+        <div class="community-filter">
+            <button class="filter-pill active" data-filter="all" onclick="filterPosts('all')">
                 <i class="fas fa-layer-group"></i> 全部
             </button>
-            <button class="filter-pill-pro" data-filter="mood" onclick="filterPosts('mood')">
+            <button class="filter-pill" data-filter="mood" onclick="filterPosts('mood')">
                 <i class="fas fa-heart"></i> 心情
             </button>
-            <button class="filter-pill-pro" data-filter="achievement" onclick="filterPosts('achievement')">
+            <button class="filter-pill" data-filter="achievement" onclick="filterPosts('achievement')">
                 <i class="fas fa-trophy"></i> 成就
             </button>
-            <button class="filter-pill-pro" data-filter="insight" onclick="filterPosts('insight')">
+            <button class="filter-pill" data-filter="insight" onclick="filterPosts('insight')">
                 <i class="fas fa-lightbulb"></i> 感悟
             </button>
         </div>
         
-        <div class="feed-pro" id="community-posts">
+        <div class="community-feed" id="community-posts">
             <!-- 帖子列表 -->
         </div>
         
-        <button class="fab-pro" onclick="showPostModal()">
+        <button class="fab-modern" onclick="showPostModal()">
             <i class="fas fa-plus"></i>
         </button>
     </div>
     
-    <!-- Post Modal - 专业设计 -->
+    <!-- Post Modal -->
     <div class="modal" id="postModal">
-        <div class="post-modal-pro">
-            <div class="post-modal-header-pro">
-                <div class="post-modal-title-pro">✨ 分享此刻</div>
-                <button class="post-modal-close-pro" onclick="closeModal('postModal')">
+        <div class="post-modal-content">
+            <div class="post-modal-header">
+                <div class="post-modal-title">✨ 分享此刻</div>
+                <button class="post-modal-close" onclick="closeModal('postModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <div class="post-type-selector-pro">
-                <button class="post-type-option-pro active" id="post-type-mood" onclick="selectPostType('mood')">
-                    <div class="post-type-icon-pro" style="color: #ec4899;">❤️</div>
+            <div class="post-type-selector">
+                <button class="post-type-option active" id="post-type-mood" onclick="selectPostType('mood')">
+                    <div style="font-size: 24px; margin-bottom: 6px;">❤️</div>
                     <span>心情</span>
                 </button>
-                <button class="post-type-option-pro" id="post-type-achievement" onclick="selectPostType('achievement')">
-                    <div class="post-type-icon-pro" style="color: #f59e0b;">🏆</div>
+                <button class="post-type-option" id="post-type-achievement" onclick="selectPostType('achievement')">
+                    <div style="font-size: 24px; margin-bottom: 6px;">🏆</div>
                     <span>成就</span>
                 </button>
-                <button class="post-type-option-pro" id="post-type-insight" onclick="selectPostType('insight')">
-                    <div class="post-type-icon-pro" style="color: #10b981;">💡</div>
+                <button class="post-type-option" id="post-type-insight" onclick="selectPostType('insight')">
+                    <div style="font-size: 24px; margin-bottom: 6px;">💡</div>
                     <span>感悟</span>
                 </button>
             </div>
             
-            <div class="post-input-wrapper-pro">
-                <label class="post-input-label-pro">此刻心情</label>
-                <div class="mood-selector-pro">
-                    <button class="mood-option-pro active" id="mood-happy" onclick="selectMood('happy')" style="--mood-color: #10b981;">
-                        <div class="mood-emoji-pro">😊</div>
-                        <div class="mood-label-pro">开心</div>
+            <div class="post-input-wrapper">
+                <label class="post-input-label">此刻心情</label>
+                <div class="mood-selector-modern">
+                    <button class="mood-option active" id="mood-happy" onclick="selectMood('happy')">
+                        <div class="mood-option-emoji">😊</div>
+                        <div class="mood-option-label">开心</div>
                     </button>
-                    <button class="mood-option-pro" id="mood-calm" onclick="selectMood('calm')" style="--mood-color: #3b82f6;">
-                        <div class="mood-emoji-pro">😌</div>
-                        <div class="mood-label-pro">平静</div>
+                    <button class="mood-option" id="mood-calm" onclick="selectMood('calm')">
+                        <div class="mood-option-emoji">😌</div>
+                        <div class="mood-option-label">平静</div>
                     </button>
-                    <button class="mood-option-pro" id="mood-tired" onclick="selectMood('tired')" style="--mood-color: #64748b;">
-                        <div class="mood-emoji-pro">😴</div>
-                        <div class="mood-label-pro">疲惫</div>
+                    <button class="mood-option" id="mood-tired" onclick="selectMood('tired')">
+                        <div class="mood-option-emoji">😴</div>
+                        <div class="mood-option-label">疲惫</div>
                     </button>
-                    <button class="mood-option-pro" id="mood-anxious" onclick="selectMood('anxious')" style="--mood-color: #f59e0b;">
-                        <div class="mood-emoji-pro">😰</div>
-                        <div class="mood-label-pro">焦虑</div>
+                    <button class="mood-option" id="mood-anxious" onclick="selectMood('anxious')">
+                        <div class="mood-option-emoji">😰</div>
+                        <div class="mood-option-label">焦虑</div>
                     </button>
-                    <button class="mood-option-pro" id="mood-excited" onclick="selectMood('excited')" style="--mood-color: #ec4899;">
-                        <div class="mood-emoji-pro">🤩</div>
-                        <div class="mood-label-pro">兴奋</div>
+                    <button class="mood-option" id="mood-excited" onclick="selectMood('excited')">
+                        <div class="mood-option-emoji">🤩</div>
+                        <div class="mood-option-label">兴奋</div>
                     </button>
-                    <button class="mood-option-pro" id="mood-grateful" onclick="selectMood('grateful')" style="--mood-color: #8b5cf6;">
-                        <div class="mood-emoji-pro">🙏</div>
-                        <div class="mood-label-pro">感恩</div>
+                    <button class="mood-option" id="mood-grateful" onclick="selectMood('grateful')">
+                        <div class="mood-option-emoji">🙏</div>
+                        <div class="mood-option-label">感恩</div>
                     </button>
                 </div>
             </div>
             
-            <div class="post-input-wrapper-pro">
-                <label class="post-input-label-pro">想说的话</label>
-                <textarea class="post-textarea-pro" id="postContent" placeholder="分享今天的心情、成就或感悟..."></textarea>
+            <div class="post-input-wrapper">
+                <label class="post-input-label">想说的话</label>
+                <textarea class="post-textarea" id="postContent" placeholder="分享今天的心情、成就或感悟..."></textarea>
             </div>
             
-            <button class="post-submit-btn-pro" onclick="submitPost()">
+            <button class="post-submit-btn" onclick="submitPost()">
                 <i class="fas fa-paper-plane"></i> 发布动态
             </button>
         </div>
