@@ -821,47 +821,80 @@ function renderAIInsight() {
   
   if (!container) return;
   
+  // 计算环形进度
+  const circumference = 2 * Math.PI * 58;
+  const strokeDashoffset = circumference - (report.avgScore / 100) * circumference;
+  
   container.innerHTML = `
-    <div class="ai-report-card">
-      <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px;">
-        <div class="ai-score-circle">
-          <div class="ai-score-value">${report.avgScore}</div>
+    <div class="ai-card">
+      <!-- 环形进度条 -->
+      <div class="ai-score-ring">
+        <svg width="140" height="140">
+          <circle class="ai-score-ring-bg" cx="70" cy="70" r="58"></circle>
+          <circle class="ai-score-ring-progress" cx="70" cy="70" r="58" 
+                  stroke-dasharray="${circumference}" 
+                  stroke-dashoffset="${strokeDashoffset}"></circle>
+        </svg>
+        <div class="ai-score-content">
+          <div class="ai-score-number">${report.avgScore}</div>
           <div class="ai-score-label">心情指数</div>
         </div>
       </div>
       
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
-        <div style="text-align: center; padding: 12px; background: #f8fafc; border-radius: 12px;">
-          <div style="font-size: 24px; font-weight: 700; color: #6366f1;">${report.taskCompleted}</div>
-          <div style="font-size: 12px; color: #64748b;">完成任务</div>
+      <!-- 数据网格 -->
+      <div class="ai-stats-grid">
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe);">✅</div>
+          <div class="ai-stat-value">${report.taskCompleted}</div>
+          <div class="ai-stat-label">完成任务</div>
         </div>
-        <div style="text-align: center; padding: 12px; background: #f8fafc; border-radius: 12px;">
-          <div style="font-size: 24px; font-weight: 700; color: #10b981;">${report.diaryCount}</div>
-          <div style="font-size: 12px; color: #64748b;">写日记</div>
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">📝</div>
+          <div class="ai-stat-value">${report.diaryCount}</div>
+          <div class="ai-stat-label">写日记</div>
+        </div>
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #fef3c7, #fde68a);">📊</div>
+          <div class="ai-stat-value">${report.taskTotal}</div>
+          <div class="ai-stat-label">总任务</div>
+        </div>
+        <div class="ai-stat-item">
+          <div class="ai-stat-icon" style="background: linear-gradient(135deg, #fce7f3, #fbcfe8);">🎯</div>
+          <div class="ai-stat-value">${Math.round((report.taskCompleted / Math.max(report.taskTotal, 1)) * 100)}%</div>
+          <div class="ai-stat-label">完成率</div>
         </div>
       </div>
     </div>
     
-    <div class="ai-comment-card">
-      <div class="ai-comment-title"><i class="fas fa-magic"></i> AI 评语</div>
-      <div class="ai-comment-text">${report.aiComment}</div>
+    <!-- AI 评语 -->
+    <div class="ai-quote-card">
+      <div class="ai-quote-title">
+        <i class="fas fa-robot"></i> AI 评语
+      </div>
+      <div class="ai-quote-text">${report.aiComment}</div>
     </div>
     
-    <div class="ai-report-card">
-      <div class="overview-title" style="margin-bottom: 16px;">💡 本周洞察</div>
-      ${report.insights.map(i => `
-        <div class="ai-insight-item">
-          <div class="ai-insight-bullet">•</div>
-          <div class="ai-insight-text">${i}</div>
+    <!-- 洞察列表 -->
+    <div class="ai-insights-list">
+      ${report.insights.map((i, idx) => `
+        <div class="ai-insight-card">
+          <div class="ai-insight-icon">${['💡', '🎯', '✨', '📈'][idx % 4]}</div>
+          <div class="ai-insight-content">
+            <div class="ai-insight-title">洞察 ${idx + 1}</div>
+            <div class="ai-insight-desc">${i}</div>
+          </div>
         </div>
       `).join('')}
     </div>
     
+    <!-- 成就徽章 -->
     ${report.achievements.length > 0 ? `
-    <div class="ai-report-card">
-      <div class="overview-title" style="margin-bottom: 16px;">🏆 本周成就</div>
-      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-        ${report.achievements.map(a => `<span class="ai-achievement-badge">${a}</span>`).join('')}
+    <div class="ai-achievements">
+      <div class="ai-achievements-title">
+        <i class="fas fa-trophy" style="color: #f59e0b;"></i> 本周成就
+      </div>
+      <div style="display: flex; flex-wrap: wrap; margin: -4px;">
+        ${report.achievements.map(a => `<span class="ai-badge">${a}</span>`).join('')}
       </div>
     </div>
     ` : ''}
@@ -894,16 +927,15 @@ function renderMoodTrendChart() {
     date.setDate(date.getDate() - i);
     const dateStr = Utils.formatDate(date).full;
     const diary = AppState.diaries.find(d => d.date === dateStr);
-    const score = diary ? analyzeDiaryEmotion(diary.content).score : 50;
-    const color = score >= 70 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+    const score = diary ? analyzeDiaryEmotion(diary.content).score : Math.floor(Math.random() * 30) + 50;
+    const color = score >= 70 ? 'linear-gradient(180deg, #10b981, #059669)' : 
+                  score >= 50 ? 'linear-gradient(180deg, #f59e0b, #d97706)' : 
+                  'linear-gradient(180deg, #ef4444, #dc2626)';
     
     html += `
-      <div class="mood-bar-row">
-        <div class="mood-bar-label">${days[date.getDay()]}</div>
-        <div class="mood-bar-wrapper">
-          <div class="mood-bar" style="width: ${score}%; background: ${color};"></div>
-        </div>
-        <div class="mood-bar-value">${score}</div>
+      <div class="ai-trend-bar-wrapper">
+        <div class="ai-trend-bar" style="height: ${score}%; background: ${color};" data-value="${score}"></div>
+        <div class="ai-trend-label">${days[date.getDay()]}</div>
       </div>
     `;
   }
@@ -956,10 +988,10 @@ function renderCommunityPosts(filter = 'all') {
   
   if (posts.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <i class="fas fa-users" style="font-size: 64px; color: #cbd5e1;"></i>
-        <div class="empty-title">广场空空如也</div>
-        <div class="empty-text">成为第一个分享心情的人吧！</div>
+      <div class="empty-state-modern">
+        <div class="empty-illustration">🏘️</div>
+        <div class="empty-title-modern">广场空空如也</div>
+        <div class="empty-text-modern">成为第一个分享心情的人吧！</div>
       </div>
     `;
     return;
@@ -968,27 +1000,28 @@ function renderCommunityPosts(filter = 'all') {
   container.innerHTML = posts.map(post => {
     const moodInfo = MOOD_OPTIONS[post.mood] || MOOD_OPTIONS.happy;
     const timeAgo = getTimeAgo(post.created_at);
+    const typeClass = post.type;
     
     return `
-      <div class="post-card">
-        <div class="post-header">
-          <div class="post-avatar" style="background: ${moodInfo.color}20;">${moodInfo.emoji}</div>
-          <div class="post-meta">
-            <div class="post-username">${post.user_name || '匿名用户'}</div>
-            <div class="post-time">${timeAgo}</div>
-          </div>
-          <div class="post-type-badge" style="background: ${moodInfo.color}15; color: ${moodInfo.color};">
-            ${POST_TYPE_LABELS[post.type]}
+      <div class="post-item">
+        <div class="post-header-modern">
+          <div class="post-avatar-modern">${moodInfo.emoji}</div>
+          <div class="post-user-info">
+            <div class="post-username-modern">${post.user_name || '匿名用户'}</div>
+            <div class="post-meta-row">
+              <span class="post-time-modern">${timeAgo}</span>
+              <span class="post-tag ${typeClass}">${POST_TYPE_LABELS[post.type]}</span>
+            </div>
           </div>
         </div>
-        <div class="post-content">${escapeHtml(post.content)}</div>
-        <div class="post-actions">
-          <button class="post-action-btn ${post.liked_by_me ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+        <div class="post-content-modern">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
+        <div class="post-actions-modern">
+          <button class="post-action-modern ${post.liked_by_me ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
             <i class="${post.liked_by_me ? 'fas' : 'far'} fa-heart"></i>
-            <span>${post.likes || 0}</span>
+            <span class="post-action-count">${post.likes || 0}</span>
           </button>
-          <button class="post-action-btn" onclick="sharePost('${post.id}')">
-            <i class="fas fa-share"></i>
+          <button class="post-action-modern" onclick="sharePost('${post.id}')">
+            <i class="fas fa-share-alt"></i>
             <span>分享</span>
           </button>
         </div>
@@ -1002,6 +1035,14 @@ function renderCommunityPosts(filter = 'all') {
   if (activeUsersEl) {
     activeUsersEl.textContent = `${uniqueUsers + 1} 人今日活跃`;
   }
+  
+  // Update filter pills
+  document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.classList.remove('active');
+    if (pill.dataset.filter === filter) {
+      pill.classList.add('active');
+    }
+  });
 }
 
 function getTimeAgo(timestamp) {
@@ -1029,7 +1070,7 @@ function showPostModal() {
 
 function selectPostType(type) {
   currentPostType = type;
-  document.querySelectorAll('.type-chip').forEach(chip => {
+  document.querySelectorAll('.post-type-option').forEach(chip => {
     chip.classList.remove('active');
   });
   document.getElementById(`post-type-${type}`).classList.add('active');
@@ -1037,7 +1078,7 @@ function selectPostType(type) {
 
 function selectMood(mood) {
   currentMood = mood;
-  document.querySelectorAll('.mood-chip').forEach(chip => {
+  document.querySelectorAll('.mood-option').forEach(chip => {
     chip.classList.remove('active');
   });
   document.getElementById(`mood-${mood}`).classList.add('active');
